@@ -3,6 +3,9 @@
 
 #include <QMainWindow>
 
+class RemoteServer;
+class DiscoveryResponder;
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -19,5 +22,8 @@ public:
 
 private:
     Ui::MainWindow *ui;
+    RemoteServer *m_server = nullptr;
+
+    DiscoveryResponder *m_discoveryResponder;
 };
 #endif // MAINWINDOW_H

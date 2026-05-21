@@ -3,6 +3,7 @@ qt_add_library(remotelink_common STATIC
     protocol/Packet.h
     protocol/PacketCodec.h
     protocol/PacketCodec.cpp
+    protocol/NetworkConstants.h
 )
 
 target_link_libraries(remotelink_common

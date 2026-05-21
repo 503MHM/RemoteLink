@@ -36,9 +36,14 @@ install(SCRIPT ${deploy_script})
 
 qt_add_executable(server
     main.cpp
+    src/network/RemoteServer.cpp
+    src/network/RemoteServer.h
     src/ui/mainwindow.cpp
     src/ui/mainwindow.h
     src/ui/mainwindow.ui
+    src/network/DiscoveryResponder.h
+    src/network/DiscoveryResponder.cpp
+    
 )
 
 target_link_libraries(server

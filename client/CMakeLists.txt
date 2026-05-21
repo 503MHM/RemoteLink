@@ -36,6 +36,11 @@ install(SCRIPT ${deploy_script})
 
 qt_add_executable(client
     main.cpp
+    src/network/RemoteSession.cpp
+    src/network/RemoteSession.h
+    src/network/DiscoveryClient.cpp
+    src/network/DiscoveryClient.h
+
     src/ui/mainwindow.cpp
     src/ui/mainwindow.h
     src/ui/mainwindow.ui

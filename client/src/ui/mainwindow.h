@@ -2,6 +2,10 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QListWidget>
+
+class RemoteSession;
+class DiscoveryClient;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -19,5 +23,12 @@ public:
 
 private:
     Ui::MainWindow *ui;
+    RemoteSession *m_session = nullptr;
+    DiscoveryClient *m_discoveryClient=nullptr;
+
+private slots:
+    void onServerFound(const QString &ip, quint16 tcpPort, const QString &deviceName);
+
+    void onItemDoubleClicked(QListWidgetItem *item);
 };
 #endif // MAINWINDOW_H
