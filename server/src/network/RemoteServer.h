@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QTimer>
 
 class RemoteServer : public QObject
 {
@@ -23,4 +24,7 @@ private slots:
 private:
     QTcpServer m_server;
     RemoteLink::PacketCodec m_codec;
+    QTcpSocket *m_currClientSocket;
+    QTimer m_frameTimer;
+    quint32 m_frameSequence;
 };

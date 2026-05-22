@@ -8,8 +8,27 @@ using namespace RemoteLink;
 
 RemoteServer::RemoteServer(QObject *parent)
     : QObject(parent)
-{
+    ,m_frameSequence(0)
+    ,m_currClientSocket(nullptr)
+    {
     connect(&m_server, &QTcpServer::newConnection, this, &RemoteServer::onNewConnection);
+    
+    //定时发送截图
+    connect(&m_frameTimer,&QTimer::timeout,this,[=](){
+        QByteArray jpegData=ScreenCapture::captureJpeg(50);
+        if(jpegData.isEmpty()) return;
+
+        //打包
+        Packet packet;
+        packet.type=MessageType::FrameData;
+        packet.sequence=m_frameSequence++;
+        packet.payload=jpegData;
+        QByteArray sendData=PacketCodec::encode(packet);
+
+        if(!m_currClientSocket || (m_currClientSocket->state()!=QAbstractSocket::SocketState::ConnectedState)) return;
+
+        m_currClientSocket->write(sendData);
+    });
 }
 
 bool RemoteServer::listen(quint16 port)
@@ -27,6 +46,9 @@ void RemoteServer::onNewConnection()
 {
     while (QTcpSocket *client = m_server.nextPendingConnection()) {
         qDebug() << "[server] client connected:" << client->peerAddress().toString() << client->peerPort();
+
+        m_currClientSocket=client;
+
         connect(client, &QTcpSocket::readyRead, this, &RemoteServer::onReadyRead);
         connect(client, &QTcpSocket::disconnected, this, &RemoteServer::onClientDisconnected);
     }
@@ -46,20 +68,26 @@ void RemoteServer::onReadyRead()
                  << "sequence =" << packet->sequence
                  << "payload =" << packet->payload;
 
-        //送到心跳包后发送截图
+        // //送到心跳包后发送截图
+        // if(packet->type==MessageType::Heartbeat){
+        //     QByteArray jpegData=ScreenCapture::captureJpeg(100);
+        //     if(jpegData.isEmpty()) return;
+
+        //     Packet framePacket;
+        //     framePacket.type=MessageType::FrameData;
+        //     framePacket.sequence=1;
+        //     framePacket.payload=jpegData;
+
+        //     QByteArray sendData=PacketCodec::encode(framePacket);
+        //     client->write(sendData);
+
+        // }
+
+        //收到心跳包后启动定时器
         if(packet->type==MessageType::Heartbeat){
-            QByteArray jpegData=ScreenCapture::captureJpeg(100);
-            if(jpegData.isEmpty()) return;
-
-            Packet framePacket;
-            framePacket.type=MessageType::FrameData;
-            framePacket.sequence=1;
-            framePacket.payload=jpegData;
-
-            QByteArray sendData=PacketCodec::encode(framePacket);
-            client->write(sendData);
-
+            m_frameTimer.start(200);
         }
+    
     }
 }
 
@@ -71,5 +99,11 @@ void RemoteServer::onClientDisconnected()
     }
 
     qDebug() << "[server] client disconnected";
+
+    if (client == m_currClientSocket) {
+        m_frameTimer.stop();
+        m_currClientSocket = nullptr;
+    }
+
     client->deleteLater();
 }
