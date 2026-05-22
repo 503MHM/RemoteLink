@@ -43,6 +43,8 @@ qt_add_executable(server
     src/ui/mainwindow.ui
     src/network/DiscoveryResponder.h
     src/network/DiscoveryResponder.cpp
+    src/capture/ScreenCapture.cpp
+    src/capture/ScreenCapture.h
     
 )
 

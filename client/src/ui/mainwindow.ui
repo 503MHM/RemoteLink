@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>1155</width>
+    <height>660</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,10 +17,10 @@
    <widget class="QGroupBox" name="groupBox">
     <property name="geometry">
      <rect>
-      <x>490</x>
-      <y>40</y>
-      <width>280</width>
-      <height>296</height>
+      <x>860</x>
+      <y>30</y>
+      <width>251</width>
+      <height>181</height>
      </rect>
     </property>
     <property name="title">
@@ -46,13 +46,26 @@
      </item>
     </layout>
    </widget>
+   <widget class="QLabel" name="main_label">
+    <property name="geometry">
+     <rect>
+      <x>90</x>
+      <y>50</y>
+      <width>631</width>
+      <height>421</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>111</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>1155</width>
      <height>25</height>
     </rect>
    </property>

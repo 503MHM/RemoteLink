@@ -2,6 +2,7 @@
 #include "protocol/PacketCodec.h"
 
 #include <QNetworkProxy>
+#include <QImage>
 #include <QDebug>
 
 using namespace RemoteLink;
@@ -12,7 +13,7 @@ RemoteSession::RemoteSession(QObject *parent)
     connect(&m_socket, &QTcpSocket::connected, this, &RemoteSession::onConnected);
     connect(&m_socket, &QTcpSocket::disconnected, this, &RemoteSession::onDisconnected);
     connect(&m_socket, &QTcpSocket::errorOccurred, this, &RemoteSession::onErrorOccurred);
-
+    connect(&m_socket,&QTcpSocket::readyRead,this,&RemoteSession::onReadyread);
 
     m_socket.setProxy(QNetworkProxy::NoProxy);
 }
@@ -38,16 +39,36 @@ void RemoteSession::sendHeartbeat()
 void RemoteSession::onConnected()
 {
     qDebug() << "[client] connected";
+    emit connected();
     sendHeartbeat();
 }
 
 void RemoteSession::onDisconnected()
 {
     qDebug() << "[client] disconnected";
+    emit disconnected();
 }
 
 void RemoteSession::onErrorOccurred(QAbstractSocket::SocketError error)
 {
     Q_UNUSED(error)
     qWarning() << "[client] socket error:" << m_socket.errorString();
+    emit errorOccurred(m_socket.errorString());
+}
+
+void RemoteSession::onReadyread()
+{
+    QByteArray Recedata=m_socket.readAll();
+
+    m_codec.appendData(Recedata);
+    while (auto packet=m_codec.takePacket())
+    {
+        if(packet->type==MessageType::FrameData){
+            QImage image;
+            if(image.loadFromData(packet->payload)){
+                emit frameReceived(image);
+            }
+        }
+    }
+    
 }

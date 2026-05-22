@@ -6,6 +6,7 @@
 #include "protocol/NetworkConstants.h"
 
 #include <QTimer>
+#include <QPixmap>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -15,11 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     this->setWindowTitle("Client");
 
-    // QTimer::singleShot(500, this, [this]() {
-    //     m_session->connectToServer(QStringLiteral("127.0.0.1"), 45454);
-    // });
-
-    //
+    //开启udp扫描设备
     m_discoveryClient=new DiscoveryClient(this);
     if(m_discoveryClient->start(DiscoveryPort)){
         m_discoveryClient->search();
@@ -37,6 +34,23 @@ MainWindow::MainWindow(QWidget *parent)
 
     //双击后通过tcp连接某一设备
     connect(ui->device_listWidget,&QListWidget::itemDoubleClicked,this,&MainWindow::onItemDoubleClicked);
+
+    //状态提示
+    connect(m_session,&RemoteSession::connected,this,[this](){
+        ui->status_label->setText("已连接");
+        //ui->refresh_pushButton->setEnabled(false);
+    });
+    connect(m_session, &RemoteSession::disconnected,this, [this]() {
+        ui->status_label->setText("已断开");
+            //ui->refresh_pushButton->setEnabled(true);
+    });
+    connect(m_session, &RemoteSession::errorOccurred,this, [this](const QString &message) {
+        ui->status_label->setText("连接错误：" + message);
+    });
+
+
+    //接收照片
+    connect(m_session,&RemoteSession::frameReceived,this,&MainWindow::onFrameReceived);
 }
 
 MainWindow::~MainWindow()
@@ -67,10 +81,19 @@ void MainWindow::onServerFound(const QString &ip, quint16 tcpPort, const QString
 }
 
 
-
 void MainWindow::onItemDoubleClicked(QListWidgetItem *item){
     QString ip=item->data(Qt::UserRole).toString();
     quint16 port=item->data(Qt::UserRole+1).toUInt();
 
     m_session->connectToServer(ip,port);
+}
+
+
+void MainWindow::onFrameReceived(const QImage &image){
+    auto pixmap = QPixmap::fromImage(image);
+    ui->main_label->setPixmap(
+    pixmap.scaled(ui->main_label->size(),
+                  Qt::KeepAspectRatio,
+                  Qt::SmoothTransformation)
+    );
 }

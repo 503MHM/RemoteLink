@@ -1,4 +1,6 @@
 #include "RemoteServer.h"
+#include "../capture/ScreenCapture.h"
+#include "protocol/PacketCodec.h"
 
 #include <QDebug>
 
@@ -43,6 +45,21 @@ void RemoteServer::onReadyRead()
                  << static_cast<quint16>(packet->type)
                  << "sequence =" << packet->sequence
                  << "payload =" << packet->payload;
+
+        //送到心跳包后发送截图
+        if(packet->type==MessageType::Heartbeat){
+            QByteArray jpegData=ScreenCapture::captureJpeg(100);
+            if(jpegData.isEmpty()) return;
+
+            Packet framePacket;
+            framePacket.type=MessageType::FrameData;
+            framePacket.sequence=1;
+            framePacket.payload=jpegData;
+
+            QByteArray sendData=PacketCodec::encode(framePacket);
+            client->write(sendData);
+
+        }
     }
 }
 
