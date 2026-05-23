@@ -45,6 +45,8 @@ qt_add_executable(server
     src/network/DiscoveryResponder.cpp
     src/capture/ScreenCapture.cpp
     src/capture/ScreenCapture.h
+    src/control/mouseController.cpp
+    src/control/mouseController.h
     
 )
 

@@ -19,9 +19,11 @@ ScreenCapture::~ScreenCapture()
 /// @return 
 QByteArray ScreenCapture::captureJpeg(int quality)
 {
+    //获取当前电脑的主屏幕
     QScreen *screen=QGuiApplication::primaryScreen();
     if(!screen) return QByteArray();
 
+    //截屏
     QPixmap pixmap=screen->grabWindow(0);
 
     QByteArray data;

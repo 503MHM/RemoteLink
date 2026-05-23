@@ -44,6 +44,9 @@ qt_add_executable(client
     src/ui/mainwindow.cpp
     src/ui/mainwindow.h
     src/ui/mainwindow.ui
+    src/ui/RemoteViewWidget.cpp
+    src/ui/RemoteViewWidget.h
+
 )
 
 target_link_libraries(client

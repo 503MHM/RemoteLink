@@ -1,6 +1,7 @@
 #include "RemoteServer.h"
 #include "../capture/ScreenCapture.h"
 #include "protocol/PacketCodec.h"
+#include "./control/MouseController.h"
 
 #include <QDebug>
 
@@ -15,6 +16,8 @@ RemoteServer::RemoteServer(QObject *parent)
     
     //定时发送截图
     connect(&m_frameTimer,&QTimer::timeout,this,[=](){
+        if(!m_currClientSocket || (m_currClientSocket->state()!=QAbstractSocket::SocketState::ConnectedState)) return;
+
         QByteArray jpegData=ScreenCapture::captureJpeg(50);
         if(jpegData.isEmpty()) return;
 
@@ -24,8 +27,6 @@ RemoteServer::RemoteServer(QObject *parent)
         packet.sequence=m_frameSequence++;
         packet.payload=jpegData;
         QByteArray sendData=PacketCodec::encode(packet);
-
-        if(!m_currClientSocket || (m_currClientSocket->state()!=QAbstractSocket::SocketState::ConnectedState)) return;
 
         m_currClientSocket->write(sendData);
     });
@@ -62,32 +63,28 @@ void RemoteServer::onReadyRead()
     }
 
     m_codec.appendData(client->readAll());
+    //解包
     while (auto packet = m_codec.takePacket()) {
         qDebug() << "[server] packet received, type ="
                  << static_cast<quint16>(packet->type)
                  << "sequence =" << packet->sequence
                  << "payload =" << packet->payload;
 
-        // //送到心跳包后发送截图
-        // if(packet->type==MessageType::Heartbeat){
-        //     QByteArray jpegData=ScreenCapture::captureJpeg(100);
-        //     if(jpegData.isEmpty()) return;
-
-        //     Packet framePacket;
-        //     framePacket.type=MessageType::FrameData;
-        //     framePacket.sequence=1;
-        //     framePacket.payload=jpegData;
-
-        //     QByteArray sendData=PacketCodec::encode(framePacket);
-        //     client->write(sendData);
-
-        // }
-
         //收到心跳包后启动定时器
         if(packet->type==MessageType::Heartbeat){
             m_frameTimer.start(200);
         }
-    
+
+        //收到鼠标点击事件
+        if(packet->type==MessageType::MouseClick){
+            //qDebug()<<packet->payload;
+            MouseController::clickFromPayload(packet->payload);
+        }
+        
+        //收到鼠标移动事件
+        if(packet->type==MessageType::MouseMove){
+            MouseController::moveFromPayload(packet->payload);
+        }
     }
 }
 

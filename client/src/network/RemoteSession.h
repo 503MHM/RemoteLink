@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QTcpSocket>
+#include <QImage>
 
 #include "protocol/PacketCodec.h"
 
@@ -14,7 +15,8 @@ public:
 
     void connectToServer(const QString &address, quint16 port);
     void sendHeartbeat();
-
+    void sendMouseClick(double xRatio,double yRatio,const QString &btn);
+    void sendMouseMove(double xRatio,double yRatio);
 
 signals:
     void connected();
@@ -28,6 +30,7 @@ private slots:
     void onDisconnected();
     void onErrorOccurred(QAbstractSocket::SocketError error);
     void onReadyread();
+
 
 private:
     QTcpSocket m_socket;

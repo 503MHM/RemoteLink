@@ -15,6 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     this->setWindowTitle("Client");
+    ui->main_label->setAlignment(Qt::AlignCenter);
 
     //开启udp扫描设备
     m_discoveryClient=new DiscoveryClient(this);
@@ -38,11 +39,9 @@ MainWindow::MainWindow(QWidget *parent)
     //状态提示
     connect(m_session,&RemoteSession::connected,this,[this](){
         ui->status_label->setText("已连接");
-        //ui->refresh_pushButton->setEnabled(false);
     });
     connect(m_session, &RemoteSession::disconnected,this, [this]() {
         ui->status_label->setText("已断开");
-            //ui->refresh_pushButton->setEnabled(true);
     });
     connect(m_session, &RemoteSession::errorOccurred,this, [this](const QString &message) {
         ui->status_label->setText("连接错误：" + message);
@@ -51,6 +50,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     //接收照片
     connect(m_session,&RemoteSession::frameReceived,this,&MainWindow::onFrameReceived);
+
+    //发送鼠标的坐标
+    connect(ui->main_label,&RemoteViewWidget::mouseClicked,this,[=](double xRatio, double yRatio, const QString &btn){
+        m_session->sendMouseClick(xRatio,yRatio,btn);
+    });
+
+    //发送鼠标移动
+    connect(ui->main_label,&RemoteViewWidget::mouseMove,this,[=](double xRatio, double yRatio){
+        m_session->sendMouseMove(xRatio,yRatio);
+    });
 }
 
 MainWindow::~MainWindow()
@@ -93,7 +102,7 @@ void MainWindow::onFrameReceived(const QImage &image){
     auto pixmap = QPixmap::fromImage(image);
     ui->main_label->setPixmap(
     pixmap.scaled(ui->main_label->size(),
-                  Qt::KeepAspectRatio,
+    Qt::KeepAspectRatio,
                   Qt::SmoothTransformation)
     );
 }

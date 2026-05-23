@@ -46,7 +46,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="QLabel" name="main_label">
+   <widget class="RemoteViewWidget" name="main_label">
     <property name="geometry">
      <rect>
       <x>90</x>
@@ -72,6 +72,13 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>RemoteViewWidget</class>
+   <extends>QLabel</extends>
+   <header>ui/RemoteViewWidget.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

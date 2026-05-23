@@ -4,6 +4,8 @@
 #include <QNetworkProxy>
 #include <QImage>
 #include <QDebug>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 using namespace RemoteLink;
 
@@ -34,6 +36,54 @@ void RemoteSession::sendHeartbeat()
     const QByteArray data = PacketCodec::encode(packet);
     m_socket.write(data);
     qDebug() << "[client] heartbeat sent, bytes =" << data.size();
+}
+
+void RemoteSession::sendMouseClick(double xRatio, double yRatio,const QString &btn)
+{
+    //构建json文本
+    QJsonObject obj;
+    obj["button"]=btn;
+    obj["xRatio"]=xRatio;
+    obj["yRatio"]=yRatio;
+
+    //将json文本转换为字节数组
+    QByteArray payload=QJsonDocument(obj).toJson(QJsonDocument::Compact);
+
+    //打包
+    Packet packet;
+    packet.type=MessageType::MouseClick;
+    packet.sequence=m_sequence++;
+    packet.payload=payload;
+    QByteArray sendData=PacketCodec::encode(packet);
+
+    if (m_socket.state() != QAbstractSocket::ConnectedState) {
+        return;
+    }
+    //发送
+    m_socket.write(sendData);
+}
+
+void RemoteSession::sendMouseMove(double xRatio, double yRatio)
+{
+    QJsonObject obj;
+    obj["xRatio"]=xRatio;
+    obj["yRatio"]=yRatio;
+
+    //将json文本转换为字节数组
+    QByteArray payload=QJsonDocument(obj).toJson(QJsonDocument::Compact);
+
+    //打包
+    Packet packet;
+    packet.type=MessageType::MouseMove;
+    packet.sequence=m_sequence++;
+    packet.payload=payload;
+    QByteArray sendData=PacketCodec::encode(packet);
+
+    if (m_socket.state() != QAbstractSocket::ConnectedState) {
+        return;
+    }
+    //发送
+    m_socket.write(sendData);
 }
 
 void RemoteSession::onConnected()
