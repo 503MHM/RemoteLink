@@ -15,11 +15,17 @@ FileTransferClient::FileTransferClient(QObject *partent)
 
 FileTransferClient::~FileTransferClient()
 {
+    if (m_workerThread) {
+        m_workerThread->quit();
+        m_workerThread->wait();
+    }
 }
 
 void FileTransferClient::sendFile(const QString &filePath, RemoteSession *session)
 {
-    if(!session){
+
+
+    if (!session){
         emit errorOccurred("[FileTransferClient] session is null");
         return;
     }
@@ -29,48 +35,56 @@ void FileTransferClient::sendFile(const QString &filePath, RemoteSession *sessio
         return;
     }
 
-    //创建文件对象
-    QFile file(filePath);
-    //打开文件
-    if(!file.open(QIODevice::ReadOnly)){
-        emit errorOccurred("[FileTransferClient] "+file.errorString());
-        return;
-    }
-    QFileInfo fileInfo(filePath);
-    
-    //生成fileID
-    QString fileId=QUuid::createUuid().toString(QUuid::StringFormat::WithoutBraces);
+    m_worker=new FileTransferWorker;
+    m_workerThread=new QThread(this);
+    m_worker->moveToThread(m_workerThread);
 
-    //1.构造json,发送MessageType::FileBegin
-    QJsonObject beginobj;
-    beginobj["fileName"]=fileInfo.fileName();
-    beginobj["fileSize"]=fileInfo.size();
-    beginobj["fileId"]=fileId;
-    QByteArray beginpayload=QJsonDocument(beginobj).toJson();
+    connect(m_workerThread, &QThread::finished,m_worker, &QObject::deleteLater);
+    connect(m_workerThread, &QThread::finished,m_workerThread, &QObject::deleteLater);
 
-    session->sendPacket(RemoteLink::MessageType::FileBegin,beginpayload);
+    connect(m_workerThread,&QThread::finished,this,[this](){
+        m_worker=nullptr;
+        m_workerThread=nullptr;
+    });
 
-    //2.发送文件数据
-    quint64 sentBytes=0;
-    constexpr quint64 chunkSize=256 *1024;            //256KB
-    while(!file.atEnd()){
-        QByteArray chunkData=file.read(chunkSize);
-
-        if(chunkData.isEmpty()){
-            return;
+    //子线程发来文件开始信息
+    connect(m_worker,&FileTransferWorker::fileBeginReady,this,[this,session](const QByteArray &beginPyload){
+        if(!session->sendPacket(RemoteLink::MessageType::FileBegin,beginPyload)){
+            emit errorOccurred("[FileTransferClient] send FileBegin failed");
         }
+    });
 
-        session->sendPacket(RemoteLink::MessageType::FileData,chunkData);
+    //子线程发来文件数据信息
+    connect(m_worker,&FileTransferWorker::fileDataReady,this,[this,session](const QByteArray &dataPyload){
+        if(!session->sendPacket(RemoteLink::MessageType::FileData,dataPyload)){
+            emit errorOccurred("[FileTransferClient] send FileData failed");
+        }
+    });
 
-        sentBytes+=chunkData.size();
-        emit progressChanged(sentBytes,fileInfo.size());
-    }
+    //子线程发来文件结束信息
+    connect(m_worker,&FileTransferWorker::fileEndReady,this,[this,session](const QByteArray &endPyload){
+        if(!session->sendPacket(RemoteLink::MessageType::FileEnd,endPyload)){
+            emit errorOccurred("[FileTransferClient] send FileEnd failed");
+        }
+    });
 
-    //3.发送fileEnd
-    QJsonObject endObj;
-    endObj["fileId"]=fileId;
-    QByteArray endPayload=QJsonDocument(endObj).toJson();
-    session->sendPacket(RemoteLink::MessageType::FileEnd,endPayload);
 
-    emit finished();
+    connect(m_worker,&FileTransferWorker::progressChanged,this,&FileTransferClient::progressChanged);
+
+    connect(m_worker,&FileTransferWorker::errorOccurred,this,&FileTransferClient::errorOccurred);
+
+    //文件发送失败退出线程
+    connect(m_worker,&FileTransferWorker::errorOccurred,m_workerThread,QThread::quit);
+
+    connect(m_worker,&FileTransferWorker::finished,this,&FileTransferClient::finished);
+
+    //文件发送完毕退出线程
+    connect(m_worker,&FileTransferWorker::finished,m_workerThread,QThread::quit);
+
+    connect(m_workerThread,&QThread::started,m_worker,[this,filePath]{
+        m_worker->startSend(filePath);
+    });
+
+
+    m_workerThread->start();
 }

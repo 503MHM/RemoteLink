@@ -3,15 +3,7 @@
 
 CaptureWorker::CaptureWorker(QObject *partent)
     :QObject(partent)
-{   
-
-    // m_timer=new QTimer(this);
-
-    // connect(m_timer,&QTimer::timeout,this,[=](){
-    //     QByteArray frameData=ScreenCapture::captureJpeg(60);
-    //     emit frameReady(frameData);
-    // });
-
+{
 }
 
 CaptureWorker::~CaptureWorker()
