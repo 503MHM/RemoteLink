@@ -1,5 +1,6 @@
 #include "RemoteSession.h"
 #include "protocol/PacketCodec.h"
+#include "protocol/MessageType.h"
 
 #include <QNetworkProxy>
 #include <QImage>
@@ -49,18 +50,8 @@ void RemoteSession::sendMouseClick(double xRatio, double yRatio,const QString &b
     //将json文本转换为字节数组
     QByteArray payload=QJsonDocument(obj).toJson(QJsonDocument::Compact);
 
-    //打包
-    Packet packet;
-    packet.type=MessageType::MouseClick;
-    packet.sequence=m_sequence++;
-    packet.payload=payload;
-    QByteArray sendData=PacketCodec::encode(packet);
-
-    if (m_socket.state() != QAbstractSocket::ConnectedState) {
-        return;
-    }
     //发送
-    m_socket.write(sendData);
+    sendPacket(MessageType::MouseClick,payload);
 }
 
 void RemoteSession::sendMouseMove(double xRatio, double yRatio)
@@ -72,18 +63,29 @@ void RemoteSession::sendMouseMove(double xRatio, double yRatio)
     //将json文本转换为字节数组
     QByteArray payload=QJsonDocument(obj).toJson(QJsonDocument::Compact);
 
-    //打包
+    //发送
+    sendPacket(MessageType::MouseMove,payload);
+}
+
+bool RemoteSession::sendPacket(RemoteLink::MessageType type, const QByteArray &payload)
+{
+    //构建packet
     Packet packet;
-    packet.type=MessageType::MouseMove;
+    packet.type=type;
     packet.sequence=m_sequence++;
     packet.payload=payload;
+
+    //打包包头和载荷
     QByteArray sendData=PacketCodec::encode(packet);
 
-    if (m_socket.state() != QAbstractSocket::ConnectedState) {
-        return;
+    if(m_socket.state()!=QAbstractSocket::ConnectedState){
+        return false;
     }
+
     //发送
     m_socket.write(sendData);
+
+    return true;
 }
 
 void RemoteSession::onConnected()

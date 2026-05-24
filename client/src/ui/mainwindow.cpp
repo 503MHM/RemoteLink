@@ -4,14 +4,18 @@
 #include "network/RemoteSession.h"
 #include "network/DiscoveryClient.h"
 #include "protocol/NetworkConstants.h"
+#include "file/FileTransferClient.h"
 
 #include <QTimer>
 #include <QPixmap>
+#include <QFileDialog>
+#include <QDir>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , m_session(new RemoteSession(this))
+    , m_fileTransferClient(new FileTransferClient(this))
 {
     ui->setupUi(this);
     this->setWindowTitle("Client");
@@ -39,6 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
     //状态提示
     connect(m_session,&RemoteSession::connected,this,[this](){
         ui->status_label->setText("已连接");
+        ui->sendFile_btn->setEnabled(true);
     });
     connect(m_session, &RemoteSession::disconnected,this, [this]() {
         ui->status_label->setText("已断开");
@@ -60,6 +65,28 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->main_label,&RemoteViewWidget::mouseMove,this,[=](double xRatio, double yRatio){
         m_session->sendMouseMove(xRatio,yRatio);
     });
+
+    //显示文件发送进度
+    connect(m_fileTransferClient,&FileTransferClient::progressChanged,this,[=](qint64 sentBytes, qint64 totalBytes){
+        if (totalBytes <= 0) {
+            ui->file_progressBar->setValue(0);
+            return;
+        }
+        
+        ui->file_progressBar->setValue(static_cast<int>(sentBytes*100/totalBytes));
+    });
+
+    //完成后可再次选文件
+    connect(m_fileTransferClient,&FileTransferClient::finished,this,[=](){
+        ui->file_progressBar->setValue(100);
+        ui->sendFile_btn->setEnabled(true);
+    });
+
+    connect(m_fileTransferClient, &FileTransferClient::errorOccurred,
+        this, [this](const QString &message) {
+            ui->status_label->setText(message);
+            ui->sendFile_btn->setEnabled(true);
+        });
 }
 
 MainWindow::~MainWindow()
@@ -106,3 +133,16 @@ void MainWindow::onFrameReceived(const QImage &image){
                   Qt::SmoothTransformation)
     );
 }
+
+
+void MainWindow::on_sendFile_btn_clicked()
+{
+    ui->file_progressBar->setValue(0);
+
+    QString filePath=QFileDialog::getOpenFileName(this,"选择要发送的文件",QDir::rootPath(),"all(*.*)");
+    if(filePath.isEmpty()) return;
+    ui->sendFile_btn->setEnabled(false);
+    
+    m_fileTransferClient->sendFile(filePath,m_session);
+}
+

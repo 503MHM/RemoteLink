@@ -17,6 +17,7 @@ public:
     void sendHeartbeat();
     void sendMouseClick(double xRatio,double yRatio,const QString &btn);
     void sendMouseMove(double xRatio,double yRatio);
+    bool sendPacket(RemoteLink::MessageType type,const QByteArray &payload);
 
 signals:
     void connected();

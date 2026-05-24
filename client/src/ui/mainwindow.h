@@ -6,6 +6,7 @@
 
 class RemoteSession;
 class DiscoveryClient;
+class FileTransferClient;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -25,11 +26,13 @@ private:
     Ui::MainWindow *ui;
     RemoteSession *m_session = nullptr;
     DiscoveryClient *m_discoveryClient=nullptr;
+    FileTransferClient *m_fileTransferClient=nullptr;
 
 private slots:
     void onServerFound(const QString &ip, quint16 tcpPort, const QString &deviceName);
 
     void onItemDoubleClicked(QListWidgetItem *item);
     void onFrameReceived(const QImage &image);
+    void on_sendFile_btn_clicked();
 };
 #endif // MAINWINDOW_H

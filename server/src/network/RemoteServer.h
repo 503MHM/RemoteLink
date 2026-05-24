@@ -1,6 +1,7 @@
 #pragma once
 
 #include "protocol/PacketCodec.h"
+#include "file/FileReceiver.h"
 
 #include <QObject>
 #include <QTcpServer>
@@ -27,4 +28,6 @@ private:
     QTcpSocket *m_currClientSocket;
     QTimer m_frameTimer;
     quint32 m_frameSequence;
+
+    FileReceiver m_fileReceiver;
 };

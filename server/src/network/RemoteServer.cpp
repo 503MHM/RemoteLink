@@ -68,7 +68,7 @@ void RemoteServer::onReadyRead()
         qDebug() << "[server] packet received, type ="
                  << static_cast<quint16>(packet->type)
                  << "sequence =" << packet->sequence
-                 << "payload =" << packet->payload;
+                 << "payload =" << packet->payload.size();
 
         //收到心跳包后启动定时器
         if(packet->type==MessageType::Heartbeat){
@@ -76,14 +76,28 @@ void RemoteServer::onReadyRead()
         }
 
         //收到鼠标点击事件
-        if(packet->type==MessageType::MouseClick){
+        else if(packet->type==MessageType::MouseClick){
             //qDebug()<<packet->payload;
             MouseController::clickFromPayload(packet->payload);
         }
         
         //收到鼠标移动事件
-        if(packet->type==MessageType::MouseMove){
+        else if(packet->type==MessageType::MouseMove){
             MouseController::moveFromPayload(packet->payload);
+        }
+
+        //收到文件开始数据包
+        else if(packet->type==MessageType::FileBegin){
+            m_fileReceiver.handleFileBegin(packet->payload);
+        }
+
+        //收到文件数据包
+        else if(packet->type==MessageType::FileData){
+            m_fileReceiver.handleFileData(packet->payload);
+        }
+        
+        else if(packet->type==MessageType::FileEnd){
+            m_fileReceiver.handleFileEnd(packet->payload);
         }
     }
 }

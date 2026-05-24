@@ -46,6 +46,8 @@ qt_add_executable(client
     src/ui/mainwindow.ui
     src/ui/RemoteViewWidget.cpp
     src/ui/RemoteViewWidget.h
+    src/file/FileTransferClient.cpp
+    src/file/FileTransferClient.h
 
 )
 
