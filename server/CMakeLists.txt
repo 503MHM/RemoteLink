@@ -49,6 +49,8 @@ qt_add_executable(server
     src/control/MouseController.h
     src/file/FileReceiver.h
     src/file/FileReceiver.cpp
+    src/capture/CaptureWorker.h
+    src/capture/CaptureWorker.cpp
     
 )
 

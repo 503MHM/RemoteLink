@@ -14,22 +14,49 @@ RemoteServer::RemoteServer(QObject *parent)
     {
     connect(&m_server, &QTcpServer::newConnection, this, &RemoteServer::onNewConnection);
     
-    //定时发送截图
-    connect(&m_frameTimer,&QTimer::timeout,this,[=](){
-        if(!m_currClientSocket || (m_currClientSocket->state()!=QAbstractSocket::SocketState::ConnectedState)) return;
 
-        QByteArray jpegData=ScreenCapture::captureJpeg(50);
-        if(jpegData.isEmpty()) return;
+    //创建截图子线程
+    m_captureThread=new QThread(this);
+    m_captureWorker=new CaptureWorker;
+    m_captureWorker->moveToThread(m_captureThread);
+    m_captureThread->start();
 
+    connect(this,&RemoteServer::startCaptureRequested,m_captureWorker,&CaptureWorker::startCaptureWork);
+    connect(this,&RemoteServer::stopCaptureRequested,m_captureWorker,&CaptureWorker::stopCaptureWork);
+
+    //收到子线程的信号后发送截图
+    connect(m_captureWorker,&CaptureWorker::frameReady,this,[=](const QByteArray &frameData){
+        
         //打包
         Packet packet;
         packet.type=MessageType::FrameData;
         packet.sequence=m_frameSequence++;
-        packet.payload=jpegData;
+        packet.payload=frameData;
+        
         QByteArray sendData=PacketCodec::encode(packet);
+
+        if(!m_currClientSocket || m_currClientSocket->state()!=QAbstractSocket::SocketState::ConnectedState){
+            qDebug()<<"[RemoteServer] send frame data filed!,disconnected";
+            return;
+        }
+
+        if (m_currClientSocket->bytesToWrite() > 2 * 1024 * 1024) {
+            return;
+        }
 
         m_currClientSocket->write(sendData);
     });
+
+
+    connect(m_captureThread, &QThread::finished,m_captureWorker, &QObject::deleteLater);
+}
+
+RemoteServer::~RemoteServer()
+{
+    emit stopCaptureRequested();
+
+    m_captureThread->quit();
+    m_captureThread->wait();
 }
 
 bool RemoteServer::listen(quint16 port)
@@ -70,9 +97,10 @@ void RemoteServer::onReadyRead()
                  << "sequence =" << packet->sequence
                  << "payload =" << packet->payload.size();
 
-        //收到心跳包后启动定时器
+        //收到心跳包后启动让截图子线程启动
         if(packet->type==MessageType::Heartbeat){
-            m_frameTimer.start(200);
+            //m_frameTimer.start(200);
+            emit startCaptureRequested(16);
         }
 
         //收到鼠标点击事件
@@ -104,6 +132,8 @@ void RemoteServer::onReadyRead()
 
 void RemoteServer::onClientDisconnected()
 {
+    emit stopCaptureRequested();
+
     auto *client = qobject_cast<QTcpSocket *>(sender());
     if (!client) {
         return;
@@ -112,7 +142,7 @@ void RemoteServer::onClientDisconnected()
     qDebug() << "[server] client disconnected";
 
     if (client == m_currClientSocket) {
-        m_frameTimer.stop();
+        //m_frameTimer.stop();
         m_currClientSocket = nullptr;
     }
 
