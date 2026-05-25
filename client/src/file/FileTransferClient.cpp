@@ -54,8 +54,38 @@ void FileTransferClient::sendFile(const QString &filePath, RemoteSession *sessio
         m_cancelRequested=false;
     });
 
+
+    constexpr qint64 HightWatermark=2*1024*1024;
+    constexpr qint64 LowWatermark=512*1024;
+
+    auto requestNextChunk=[this,session,HightWatermark](){
+        if(m_cancelRequested){
+            return;
+        }
+        if(!m_worker){
+            return;
+        }
+        if(session->bytesToWrite()>HightWatermark){
+            //缓冲区的数据大于指定的数值就不读取文件内容
+            return;
+        }
+
+        //没超过指定值继续读取文件内容到缓冲区
+        QMetaObject::invokeMethod(m_worker,"readNextChunk",Qt::QueuedConnection);
+    };
+
+    //监听 socket 排水
+    connect(session,&RemoteSession::bytesWritten,m_worker,[this,session,requestNextChunk](qint64 bytes){
+        if(m_cancelRequested) return;
+
+        if(session->bytesToWrite()<=LowWatermark){
+            requestNextChunk();
+        }
+    });
+
+
     //子线程发来文件开始信息
-    connect(m_worker,&FileTransferWorker::fileBeginReady,this,[this,session](const QByteArray &beginPyload){
+    connect(m_worker,&FileTransferWorker::fileBeginReady,this,[this,session,requestNextChunk](const QByteArray &beginPyload){
         if(!session->sendPacket(RemoteLink::MessageType::FileBegin,beginPyload)){
 
             if(m_cancelRequested) return;
@@ -63,10 +93,13 @@ void FileTransferClient::sendFile(const QString &filePath, RemoteSession *sessio
             emit errorOccurred("[FileTransferClient] send FileBegin failed");
             cancel();
         }
+
+        requestNextChunk();
+
     });
 
     //子线程发来文件数据信息
-    connect(m_worker,&FileTransferWorker::fileDataReady,this,[this,session](const QByteArray &dataPyload){
+    connect(m_worker,&FileTransferWorker::fileDataReady,this,[this,session,requestNextChunk](const QByteArray &dataPyload){
         
         if(m_cancelRequested) return;
         
@@ -74,6 +107,8 @@ void FileTransferClient::sendFile(const QString &filePath, RemoteSession *sessio
             emit errorOccurred("[FileTransferClient] send FileData failed");
             cancel();
         }
+        qDebug() << "[file] bytesToWrite =" << session->bytesToWrite();
+        requestNextChunk();
     });
 
     //子线程发来文件结束信息

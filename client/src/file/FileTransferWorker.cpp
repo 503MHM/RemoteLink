@@ -16,6 +16,45 @@ FileTransferWorker::~FileTransferWorker()
 {
 }
 
+//只读取一个chunk发送缓冲区中
+void FileTransferWorker::readNextChunk()
+{
+    
+    if(QThread::currentThread()->isInterruptionRequested()){
+        //已断开连接，停止读取文件
+        emit errorOccurred("[FileTransferWorker] file transfer canceled");
+        return;
+    }
+
+    if(!m_file.isOpen()){
+        emit errorOccurred("[FileTransferWorker] file is not open");
+        return;
+    }
+
+    if(m_file.atEnd()){
+        //读取完毕
+
+        QJsonObject endObj;
+        endObj["fileId"] = m_fileId;
+        emit fileEndReady(QJsonDocument(endObj).toJson());
+        emit finished();
+        return;
+    }
+
+    constexpr qint64 chunkSize=256*1024;
+    QByteArray chunk=m_file.read(chunkSize);
+    if(chunk.isEmpty()){
+        emit errorOccurred("[FileTransferWorker] " + m_file.errorString());
+        return;
+    }
+
+    m_sentBytes+=chunk.size();
+
+    emit fileDataReady(chunk);
+    emit progressChanged(m_sentBytes,m_fileInfo.size());
+
+}
+
 void FileTransferWorker::startSend(const QString filePath)
 {
     if(filePath.isEmpty()){
@@ -24,60 +63,23 @@ void FileTransferWorker::startSend(const QString filePath)
     }
 
 
-    //创建文件对象
-    QFile file(filePath);
-    if(!file.open(QIODevice::ReadOnly)){
-        emit errorOccurred("[FileTransferWorker] " + file.errorString());
+    m_file.setFileName(filePath);
+    if(!m_file.open(QIODevice::ReadOnly)){
+        emit errorOccurred("[FileTransferWorker] " + m_file.errorString());
         return;
     }
-    QFileInfo fileInfo(filePath);
-    //生成fileID
-    QString fileId=QUuid::createUuid().toString(QUuid::StringFormat::WithoutBraces);
+
+    m_fileInfo=QFileInfo(filePath);
+    m_fileId=QUuid::createUuid().toString(QUuid::WithoutBraces);
+    m_sentBytes=0;
 
     //构建json文本
     QJsonObject beginObj;
-    beginObj["fileName"]=fileInfo.fileName();
-    beginObj["fileSize"]=fileInfo.size();
-    beginObj["fileId"]=fileId;
+    beginObj["fileName"]=m_fileInfo.fileName();
+    beginObj["fileSize"]=m_fileInfo.size();
+    beginObj["fileId"]=m_fileId;
     QByteArray beginPyload=QJsonDocument(beginObj).toJson();
 
-    //1.发送文件开始发送消息
+    //发送文件开始发送消息
     emit fileBeginReady(beginPyload);
-
-    //2.发送数据
-    quint64 sentBytes=0;
-    constexpr quint64 chunkSize=64 *1024;            //256KB
-    while (!file.atEnd())
-    {
-
-        //判断是否需要中断,用于client断开时停止文件发送
-        if(QThread::currentThread()->isInterruptionRequested()){
-            emit errorOccurred("[FileTransferWorker] file transfer canceled");
-            qDebug()<<"[FileTransferWorker] canceled";
-            return;
-        }
-
-
-        QByteArray chunk=file.read(chunkSize);
-        if(chunk.isEmpty()){
-            emit errorOccurred("[FileTransferWorker] " + file.errorString());
-            return;
-        }
-
-        emit fileDataReady(chunk);
-
-        sentBytes+=chunk.size();
-        emit progressChanged(sentBytes,fileInfo.size());
-        
-    }
-    
-
-
-    //3.发送文件结束发送信号
-    QJsonObject endObj;
-    endObj["fileId"]=fileId;
-    QByteArray endPayload=QJsonDocument(endObj).toJson();
-    emit fileEndReady(endPayload);
-    emit finished();
-
 }

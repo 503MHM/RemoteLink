@@ -19,6 +19,8 @@ RemoteSession::RemoteSession(QObject *parent)
     connect(&m_socket,&QTcpSocket::readyRead,this,&RemoteSession::onReadyread);
 
     m_socket.setProxy(QNetworkProxy::NoProxy);
+
+    connect(&m_socket,&QTcpSocket::bytesWritten,this,&RemoteSession::bytesWritten);
 }
 
 void RemoteSession::connectToServer(const QString &address, quint16 port)
@@ -83,9 +85,14 @@ bool RemoteSession::sendPacket(RemoteLink::MessageType type, const QByteArray &p
     }
 
     //发送
-    m_socket.write(sendData);
+    ;
 
-    return true;
+    return m_socket.write(sendData)!=-1;
+}
+
+qint64 RemoteSession::bytesToWrite() const
+{
+    return m_socket.bytesToWrite();
 }
 
 void RemoteSession::onConnected()

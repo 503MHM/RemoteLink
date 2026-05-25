@@ -1,17 +1,17 @@
 #pragma once
 
 #include <QObject>
-
+#include <QFile>
+#include <QFileInfo>
 
 class FileTransferWorker : public QObject
 {
     Q_OBJECT
 private:
-    // QFile m_file;
-    // QFileInfo m_fileInfo;
-    // QString m_fileId;
-    // qint64 m_sentBytes=0;
-    // bool m_stopRequested=0;
+    QFile m_file;
+    QFileInfo m_fileInfo;
+    QString m_fileId;
+    qint64 m_sentBytes=0;
     
 public:
     FileTransferWorker(QObject *partent=nullptr);
@@ -19,7 +19,7 @@ public:
 
 public slots:
     void startSend(const QString filePath);
-    // void stop();
+    void readNextChunk();
 
 signals:
     void fileBeginReady(const QByteArray &beginPyload);
