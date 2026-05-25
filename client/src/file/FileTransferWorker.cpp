@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QUuid>
+#include <QThread>
 
 
 FileTransferWorker::FileTransferWorker(QObject *partent)
@@ -45,9 +46,18 @@ void FileTransferWorker::startSend(const QString filePath)
 
     //2.发送数据
     quint64 sentBytes=0;
-    constexpr quint64 chunkSize=256 *1024;            //256KB
+    constexpr quint64 chunkSize=64 *1024;            //256KB
     while (!file.atEnd())
     {
+
+        //判断是否需要中断,用于client断开时停止文件发送
+        if(QThread::currentThread()->isInterruptionRequested()){
+            emit errorOccurred("[FileTransferWorker] file transfer canceled");
+            qDebug()<<"[FileTransferWorker] canceled";
+            return;
+        }
+
+
         QByteArray chunk=file.read(chunkSize);
         if(chunk.isEmpty()){
             emit errorOccurred("[FileTransferWorker] " + file.errorString());

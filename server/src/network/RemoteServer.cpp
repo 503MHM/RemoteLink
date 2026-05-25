@@ -72,7 +72,21 @@ bool RemoteServer::listen(quint16 port)
 
 void RemoteServer::onNewConnection()
 {
+
     while (QTcpSocket *client = m_server.nextPendingConnection()) {
+
+        //单连接限制
+        if(m_currClientSocket && m_currClientSocket->state()==QAbstractSocket::SocketState::ConnectedState)
+        {
+            qWarning()<< "[server] reject client, already connected:"
+                      << client->peerAddress().toString()
+                      << client->peerPort();
+
+                      client->disconnectFromHost();
+                      client->deleteLater();
+                      continue;
+        }
+
         qDebug() << "[server] client connected:" << client->peerAddress().toString() << client->peerPort();
 
         m_currClientSocket=client;

@@ -12,6 +12,7 @@ class FileTransferClient:public QObject
 private:
     FileTransferWorker *m_worker=nullptr;
     QThread *m_workerThread=nullptr;
+    bool m_cancelRequested=false;
     //bool m_running=false;
 
 public:
@@ -19,6 +20,7 @@ public:
     ~FileTransferClient();
 
     void sendFile(const QString &filePath,RemoteSession *session);
+    void cancel();
 
 signals:
     void progressChanged(qint64 sentBytes,qint64 totalBytes);

@@ -47,6 +47,8 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(m_session, &RemoteSession::disconnected,this, [this]() {
         ui->status_label->setText("已断开");
+        m_fileTransferClient->cancel();         //断连后让子线程停止继续读文件
+        ui->sendFile_btn->setEnabled(true);
     });
     connect(m_session, &RemoteSession::errorOccurred,this, [this](const QString &message) {
         ui->status_label->setText("连接错误：" + message);
