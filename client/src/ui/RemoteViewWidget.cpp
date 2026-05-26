@@ -50,6 +50,24 @@ void RemoteViewWidget::mouseMoveEvent(QMouseEvent *ev)
 
 }
 
+void RemoteViewWidget::wheelEvent(QWheelEvent *ev)
+{
+
+    QPointF angle=ev->angleDelta();
+    int deltaY=angle.y();
+
+    double xRatio=-1;
+    double yRatio=-1;
+
+    if(!this->positionToRatio(ev->position(),xRatio,yRatio)) {
+        return;
+    }
+    if(xRatio==-1 || yRatio==-1) return;
+
+    emit mouseWheel(xRatio,yRatio,deltaY);
+
+}
+
 /// @brief 获取坐标比例
 /// @param pos 
 /// @param xRatio 

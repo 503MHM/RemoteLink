@@ -4,6 +4,10 @@
 #include <QNetworkDatagram>
 #include <QDebug>
 
+
+#include<QNetworkInterface>
+
+
 DiscoveryClient::DiscoveryClient(QObject *parent):
     QObject(parent)
 {
@@ -30,18 +34,55 @@ bool DiscoveryClient::start(quint16 discoveryPort)
     return true;
 }
 
+// void DiscoveryClient::search()
+// {
+//     //创建json对象
+//     QJsonObject obj;
+//     obj["type"]="DISCOVERY";
+//     obj["clientName"]="RemoteLink Client";
+
+//     //转为字节数组发送
+//     QByteArray sendData=QJsonDocument(obj).toJson(QJsonDocument::Compact);
+
+//     //发送
+//     m_socket->writeDatagram(sendData,QHostAddress::Broadcast,m_discoveryPort);
+// }
+
+
 void DiscoveryClient::search()
 {
-    //创建json对象
     QJsonObject obj;
-    obj["type"]="DISCOVERY";
-    obj["clientName"]="RemoteLink Client";
+    obj["type"] = "DISCOVERY";
+    obj["clientName"] = "RemoteLink Client";
 
-    //转为字节数组发送
-    QByteArray sendData=QJsonDocument(obj).toJson(QJsonDocument::Compact);
+    QByteArray sendData = QJsonDocument(obj).toJson(QJsonDocument::Compact);
 
-    //发送
-    m_socket->writeDatagram(sendData,QHostAddress::Broadcast,m_discoveryPort);
+    const auto interfaces = QNetworkInterface::allInterfaces();
+    for (const QNetworkInterface &iface : interfaces) {
+        if (!(iface.flags() & QNetworkInterface::IsUp) ||
+            !(iface.flags() & QNetworkInterface::IsRunning) ||
+            (iface.flags() & QNetworkInterface::IsLoopBack)) {
+            continue;
+        }
+
+        for (const QNetworkAddressEntry &entry : iface.addressEntries()) {
+            if (entry.ip().protocol() != QAbstractSocket::IPv4Protocol) {
+                continue;
+            }
+
+            QHostAddress broadcast = entry.broadcast();
+            if (broadcast.isNull()) {
+                continue;
+            }
+
+            qDebug() << "[client] discovery broadcast to"
+                     << broadcast.toString()
+                     << "via"
+                     << iface.humanReadableName();
+
+            m_socket->writeDatagram(sendData, broadcast, m_discoveryPort);
+        }
+    }
 }
 
 

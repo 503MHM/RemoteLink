@@ -19,13 +19,15 @@ public:
     void sendMouseMove(double xRatio,double yRatio);
     bool sendPacket(RemoteLink::MessageType type,const QByteArray &payload);
 
+    void sendMouseWheel(double xRatio,double yRatio,const int deltaY);
+
     qint64 bytesToWrite() const;
 
 signals:
     void connected();
     void disconnected();
     void errorOccurred(const QString &message);
-    
+
     void frameDataReceived(const QByteArray &frameData);
 
     void bytesWritten(qint64 bytes);

@@ -128,6 +128,11 @@ void RemoteServer::onReadyRead()
             MouseController::moveFromPayload(packet->payload);
         }
 
+        //收到鼠标滚轮事件
+        else if(packet->type==MessageType::MouseWheel){
+            MouseController::wheelFromPayload(packet->payload);
+        }
+
         //收到文件开始数据包
         else if(packet->type==MessageType::FileBegin){
             m_fileReceiver.handleFileBegin(packet->payload);

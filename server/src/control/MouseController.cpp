@@ -21,7 +21,6 @@ bool MouseController::clickFromPayload(const QByteArray & payload)
     if (!doc.isObject()) {
         return false;
     }
-
     QJsonObject obj = doc.object();
     QString btn = obj.value("button").toString();
 
@@ -50,6 +49,28 @@ bool MouseController::moveFromPayload(const QByteArray & payload)
 
     SetCursorPos(x, y);
     qDebug()<<"[server] mouse move:"<<x<<y;
+
+    return true;
+}
+
+bool MouseController::wheelFromPayload(const QByteArray &payload)
+{
+
+    int x=0;
+    int y=0;
+
+    if(!positionFromPayload(payload,x,y)){
+        return false;
+    }
+
+    QJsonDocument doc=QJsonDocument::fromJson(payload);
+    if(!doc.isObject()) return false;
+    QJsonObject obj=doc.object();
+    int delatY=obj.value("deltaY").toInt();
+
+    SetCursorPos(x,y);
+    mouse_event(MOUSEEVENTF_WHEEL,0,0,delatY,0);
+
 
     return true;
 }

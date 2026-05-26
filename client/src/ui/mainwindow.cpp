@@ -82,6 +82,11 @@ MainWindow::MainWindow(QWidget *parent)
         m_session->sendMouseMove(xRatio,yRatio);
     });
 
+    //发送鼠标滚轮
+    connect(ui->main_label,&RemoteViewWidget::mouseWheel,this,[=](double xRatio, double yRatio, int deltaY){
+        m_session->sendMouseWheel(xRatio,yRatio,deltaY);
+    });
+
     //显示文件发送进度
     connect(m_fileTransferClient,&FileTransferClient::progressChanged,this,[=](qint64 sentBytes, qint64 totalBytes){
         if (totalBytes <= 0) {

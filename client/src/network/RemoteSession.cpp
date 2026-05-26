@@ -90,6 +90,20 @@ bool RemoteSession::sendPacket(RemoteLink::MessageType type, const QByteArray &p
     return m_socket.write(sendData)!=-1;
 }
 
+void RemoteSession::sendMouseWheel(double xRatio, double yRatio, const int deltaY)
+{
+    QJsonObject obj;
+    obj["xRatio"]=xRatio;
+    obj["yRatio"]=yRatio;
+    obj["deltaY"]=deltaY;
+
+    //将json文本转换为字节数组
+    QByteArray payload=QJsonDocument(obj).toJson(QJsonDocument::Compact);
+
+    //发送
+    sendPacket(MessageType::MouseWheel,payload);
+}
+
 qint64 RemoteSession::bytesToWrite() const
 {
     return m_socket.bytesToWrite();
