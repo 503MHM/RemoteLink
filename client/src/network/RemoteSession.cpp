@@ -123,10 +123,9 @@ void RemoteSession::onReadyread()
     while (auto packet=m_codec.takePacket())
     {
         if(packet->type==MessageType::FrameData){
-            QImage image;
-            if(image.loadFromData(packet->payload)){
-                emit frameReceived(image);
-            }
+
+            emit frameDataReceived(packet->payload);
+
         }
     }
     

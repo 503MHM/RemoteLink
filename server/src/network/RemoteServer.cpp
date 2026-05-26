@@ -114,7 +114,7 @@ void RemoteServer::onReadyRead()
         //收到心跳包后启动让截图子线程启动
         if(packet->type==MessageType::Heartbeat){
             //m_frameTimer.start(200);
-            emit startCaptureRequested(16);
+            emit startCaptureRequested(8);
         }
 
         //收到鼠标点击事件

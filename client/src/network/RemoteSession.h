@@ -25,7 +25,8 @@ signals:
     void connected();
     void disconnected();
     void errorOccurred(const QString &message);
-    void frameReceived(const QImage &image);
+    
+    void frameDataReceived(const QByteArray &frameData);
 
     void bytesWritten(qint64 bytes);
 

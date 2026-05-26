@@ -5,11 +5,13 @@
 #include "network/DiscoveryClient.h"
 #include "protocol/NetworkConstants.h"
 #include "file/FileTransferClient.h"
+#include "decode/FrameDecodeWorker.h"
 
 #include <QTimer>
 #include <QPixmap>
 #include <QFileDialog>
 #include <QDir>
+#include <QThread>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -20,6 +22,18 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     this->setWindowTitle("Client");
     ui->main_label->setAlignment(Qt::AlignCenter);
+
+
+    //创建图片接码子线程
+    m_frameDecodeThread=new QThread(this);
+    m_frameDecodeWorker=new FrameDecodeWorker;
+    m_frameDecodeWorker->moveToThread(m_frameDecodeThread);
+
+    connect(m_session,&RemoteSession::frameDataReceived,m_frameDecodeWorker,&FrameDecodeWorker::decodeFrame);
+    connect(m_frameDecodeWorker,&FrameDecodeWorker::frameDecoded,this,&MainWindow::onFrameReceived);
+    connect(m_frameDecodeThread,&QThread::finished,m_frameDecodeWorker, &QObject::deleteLater);
+    m_frameDecodeThread->start();
+
 
     //开启udp扫描设备
     m_discoveryClient=new DiscoveryClient(this);
@@ -56,7 +70,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     //接收照片
-    connect(m_session,&RemoteSession::frameReceived,this,&MainWindow::onFrameReceived);
+    //connect(m_session,&RemoteSession::frameReceived,this,&MainWindow::onFrameReceived);
 
     //发送鼠标的坐标
     connect(ui->main_label,&RemoteViewWidget::mouseClicked,this,[=](double xRatio, double yRatio, const QString &btn){
@@ -93,6 +107,10 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+
+    m_frameDecodeThread->quit();
+    m_frameDecodeThread->wait();
+
     delete ui;
 }
 
@@ -132,7 +150,7 @@ void MainWindow::onFrameReceived(const QImage &image){
     ui->main_label->setPixmap(
     pixmap.scaled(ui->main_label->size(),
     Qt::KeepAspectRatio,
-                  Qt::SmoothTransformation)
+    Qt::SmoothTransformation)
     );
 }
 

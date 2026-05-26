@@ -17,7 +17,7 @@ void CaptureWorker::startCaptureWork(quint16 intervalMS)
         m_timer = new QTimer(this);
 
         connect(m_timer, &QTimer::timeout, this, [this]() {
-            QByteArray frameData = ScreenCapture::captureJpeg(60);
+            QByteArray frameData = ScreenCapture::captureJpeg(100);
             if (!frameData.isEmpty()) {
                 emit frameReady(frameData);
             }

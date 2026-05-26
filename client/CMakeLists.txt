@@ -50,6 +50,8 @@ qt_add_executable(client
     src/file/FileTransferClient.h
     src/file/FileTransferWorker.h
     src/file/FileTransferWorker.cpp
+    src/decode/FrameDecodeWorker.h
+    src/decode/FrameDecodeWorker.cpp
 
 )
 
