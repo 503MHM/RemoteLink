@@ -51,6 +51,8 @@ qt_add_executable(server
     src/file/FileReceiver.cpp
     src/capture/CaptureWorker.h
     src/capture/CaptureWorker.cpp
+    src/control/KeyboardController.h
+    src/control/KeyboardController.cpp
     
 )
 

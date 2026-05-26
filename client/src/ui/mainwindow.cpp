@@ -87,6 +87,9 @@ MainWindow::MainWindow(QWidget *parent)
         m_session->sendMouseWheel(xRatio,yRatio,deltaY);
     });
 
+    //发送键盘信息
+    connect(ui->main_label,&RemoteViewWidget::keyEvent,m_session,&RemoteSession::sendKeyEvent);
+
     //显示文件发送进度
     connect(m_fileTransferClient,&FileTransferClient::progressChanged,this,[=](qint64 sentBytes, qint64 totalBytes){
         if (totalBytes <= 0) {

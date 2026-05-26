@@ -2,6 +2,7 @@
 #include "../capture/ScreenCapture.h"
 #include "protocol/PacketCodec.h"
 #include "./control/MouseController.h"
+#include "control/KeyboardController.h"
 
 #include <QDebug>
 
@@ -131,6 +132,11 @@ void RemoteServer::onReadyRead()
         //收到鼠标滚轮事件
         else if(packet->type==MessageType::MouseWheel){
             MouseController::wheelFromPayload(packet->payload);
+        }
+
+        //键盘键入
+        else if(packet->type==MessageType::KeyEvent){
+            keyboardController::keyFromPayload(packet->payload);
         }
 
         //收到文件开始数据包

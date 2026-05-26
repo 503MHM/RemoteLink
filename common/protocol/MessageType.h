@@ -15,7 +15,8 @@ enum class MessageType : quint16
     FileBegin = 30,
     FileData = 31,
     FileEnd = 32,
-    Heartbeat = 40
+    Heartbeat = 40,
+    KeyEvent = 50
 };
 
 } // namespace RemoteLink

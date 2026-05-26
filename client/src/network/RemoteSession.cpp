@@ -104,6 +104,20 @@ void RemoteSession::sendMouseWheel(double xRatio, double yRatio, const int delta
     sendPacket(MessageType::MouseWheel,payload);
 }
 
+void RemoteSession::sendKeyEvent(int key, int modifiers, bool pressed, QString text)
+{
+    QJsonObject obj;
+    obj["key"]=key;
+    obj["modifiers"]=modifiers;
+    obj["pressed"]=pressed;
+    obj["text"]=text;
+
+    QByteArray payload=QJsonDocument(obj).toJson(QJsonDocument::JsonFormat::Compact);
+
+    //
+    sendPacket(MessageType::KeyEvent,payload);
+}
+
 qint64 RemoteSession::bytesToWrite() const
 {
     return m_socket.bytesToWrite();

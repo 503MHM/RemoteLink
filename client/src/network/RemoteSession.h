@@ -21,6 +21,8 @@ public:
 
     void sendMouseWheel(double xRatio,double yRatio,const int deltaY);
 
+    void sendKeyEvent(int key, int modifiers, bool pressed, QString text);
+
     qint64 bytesToWrite() const;
 
 signals:

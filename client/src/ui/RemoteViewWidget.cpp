@@ -8,6 +8,9 @@ RemoteViewWidget::RemoteViewWidget(QWidget *parent)
     //打开鼠标跟踪
     setMouseTracking(true);
 
+    //label获得键盘焦点
+    setFocusPolicy(Qt::StrongFocus);
+
     m_moveTimer.start();
 }
 
@@ -66,6 +69,20 @@ void RemoteViewWidget::wheelEvent(QWheelEvent *ev)
 
     emit mouseWheel(xRatio,yRatio,deltaY);
 
+}
+
+void RemoteViewWidget::keyPressEvent(QKeyEvent *ev)
+{
+    //if(ev->isAutoRepeat()) return;
+
+    emit keyEvent(ev->key(),int(ev->modifiers()),true,ev->text());
+}
+
+void RemoteViewWidget::keyReleaseEvent(QKeyEvent *ev)
+{
+    if(ev->isAutoRepeat()) return;
+
+    emit keyEvent(ev->key(),int(ev->modifiers()),false,ev->text());
 }
 
 /// @brief 获取坐标比例
