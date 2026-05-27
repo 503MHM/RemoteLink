@@ -22,6 +22,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     this->setWindowTitle("Client");
     ui->main_label->setAlignment(Qt::AlignCenter);
+    
+    m_fpsTimer.start();
+    m_decodeFpsTimer.start();
+    m_receivedTimer.start();
 
 
     //创建图片接码子线程
@@ -29,9 +33,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_frameDecodeWorker=new FrameDecodeWorker;
     m_frameDecodeWorker->moveToThread(m_frameDecodeThread);
 
-    connect(m_session,&RemoteSession::frameDataReceived,m_frameDecodeWorker,&FrameDecodeWorker::decodeFrame);
-    connect(m_frameDecodeWorker,&FrameDecodeWorker::frameDecoded,this,&MainWindow::onFrameReceived);
+    connect(m_session,&RemoteSession::frameDataReceived,this,&MainWindow::onFrameDataReceived);
+    connect(m_frameDecodeWorker,&FrameDecodeWorker::frameDecoded,this,&MainWindow::onFrameDecoded);
     connect(m_frameDecodeThread,&QThread::finished,m_frameDecodeWorker, &QObject::deleteLater);
+    connect(m_frameDecodeWorker,&FrameDecodeWorker::decodeFailed,this,&MainWindow::onFrameDecodeFailed);
     m_frameDecodeThread->start();
 
 
@@ -160,6 +165,14 @@ void MainWindow::onFrameReceived(const QImage &image){
     Qt::KeepAspectRatio,
     Qt::SmoothTransformation)
     );
+
+    m_displayFrameCnt++;
+
+    if(m_fpsTimer.elapsed()>=1000){
+        qDebug()<<"[client] display fps ="<<m_displayFrameCnt;
+        m_displayFrameCnt=0;
+        m_fpsTimer.restart();
+    }
 }
 
 
@@ -174,3 +187,74 @@ void MainWindow::on_sendFile_btn_clicked()
     m_fileTransferClient->sendFile(filePath,m_session);
 }
 
+void MainWindow::onFrameDataReceived(const QByteArray &frameData)
+{
+    m_receivedFrameCnt++;
+    if(m_receivedTimer.elapsed()>=1000){
+        qDebug()<<"[client] received fps ="<<m_receivedFrameCnt;
+        m_receivedFrameCnt=0;
+        m_receivedTimer.restart();
+    }
+
+
+    //丢弃旧帧，只保留最新帧
+    if(m_decodeBusy){
+        m_pendingFrameData=frameData;
+        return;
+    }
+
+    m_decodeBusy=true;
+    QMetaObject::invokeMethod(m_frameDecodeWorker,"decodeFrame",Qt::ConnectionType::QueuedConnection,frameData);
+
+}
+
+void MainWindow::onFrameDecoded(const QImage &image)
+{
+
+    m_decodeFrameCnt++;
+    if(m_decodeFpsTimer.elapsed()>1000){
+        qDebug()<< "[client] decoded fps ="<<m_decodeFrameCnt;
+        m_decodeFrameCnt=0;
+        m_decodeFpsTimer.restart();
+    }
+
+
+    onFrameReceived(image);
+
+    if(!m_pendingFrameData.isEmpty()){
+        //解码下一帧
+        QByteArray nextFrame=std::move(m_pendingFrameData);
+        m_pendingFrameData.clear();
+
+        QMetaObject::invokeMethod(m_frameDecodeWorker,"decodeFrame",Qt::QueuedConnection,nextFrame);
+
+        m_decodeBusy=true;
+        return;
+    }
+
+    m_decodeBusy=false;
+}
+
+
+//解码失败释放busy
+void MainWindow::onFrameDecodeFailed()
+{
+
+
+    if (!m_pendingFrameData.isEmpty()) {
+        QByteArray nextFrame = std::move(m_pendingFrameData);
+        m_pendingFrameData.clear();
+
+        QMetaObject::invokeMethod(
+            m_frameDecodeWorker,
+            "decodeFrame",
+            Qt::QueuedConnection,
+            Q_ARG(QByteArray, nextFrame)
+        );
+
+        m_decodeBusy = true;
+        return;
+    }
+
+    m_decodeBusy = false;
+}
