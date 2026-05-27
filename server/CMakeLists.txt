@@ -62,6 +62,8 @@ target_link_libraries(server
         Qt::Widgets
         Qt::Network
         remotelink_common
+        d3d11
+        dxgi
 )
 
 target_include_directories(server
