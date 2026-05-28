@@ -14,9 +14,14 @@ public:
     explicit RemoteSession(QObject *parent = nullptr);
 
     void connectToServer(const QString &address, quint16 port);
+    
     void sendHeartbeat();
-    void sendMouseClick(double xRatio,double yRatio,const QString &btn);
+
+    //void sendMouseClick(double xRatio,double yRatio,const QString &btn);
     void sendMouseMove(double xRatio,double yRatio);
+    void sendMousePress(double xRatio, double yRatio, const QString &btn);
+    void sendMouseRelease(double xRatio, double yRatio, const QString &btn);
+
     bool sendPacket(RemoteLink::MessageType type,const QByteArray &payload);
 
     void sendMouseWheel(double xRatio,double yRatio,const int deltaY);

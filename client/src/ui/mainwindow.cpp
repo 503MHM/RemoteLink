@@ -74,23 +74,18 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
 
-    //接收照片
-    //connect(m_session,&RemoteSession::frameReceived,this,&MainWindow::onFrameReceived);
-
-    //发送鼠标的坐标
-    connect(ui->main_label,&RemoteViewWidget::mouseClicked,this,[=](double xRatio, double yRatio, const QString &btn){
-        m_session->sendMouseClick(xRatio,yRatio,btn);
-    });
 
     //发送鼠标移动
-    connect(ui->main_label,&RemoteViewWidget::mouseMove,this,[=](double xRatio, double yRatio){
-        m_session->sendMouseMove(xRatio,yRatio);
-    });
+    connect(ui->main_label,&RemoteViewWidget::mouseMove,m_session,&RemoteSession::sendMouseMove);
 
     //发送鼠标滚轮
-    connect(ui->main_label,&RemoteViewWidget::mouseWheel,this,[=](double xRatio, double yRatio, int deltaY){
-        m_session->sendMouseWheel(xRatio,yRatio,deltaY);
-    });
+    connect(ui->main_label,&RemoteViewWidget::mouseWheel,m_session,&RemoteSession::sendMouseWheel);
+
+    //发送鼠标按下
+    connect(ui->main_label,&RemoteViewWidget::mousePressed,m_session,&RemoteSession::sendMousePress);
+
+    //发送鼠标抬起
+    connect(ui->main_label,&RemoteViewWidget::mouseReleased,m_session,&RemoteSession::sendMouseRelease);
 
     //发送键盘信息
     connect(ui->main_label,&RemoteViewWidget::keyEvent,m_session,&RemoteSession::sendKeyEvent);
