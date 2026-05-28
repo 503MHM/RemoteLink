@@ -145,6 +145,14 @@ bool MouseController::releaseFromPayload(const QByteArray &payload)
     return true;
 }
 
+void MouseController::releaseAllButtons()
+{
+
+    mouse_event(MOUSEEVENTF_LEFTUP,0,0,0,0);
+    mouse_event(MOUSEEVENTF_RIGHTUP,0,0,0,0);
+    mouse_event(MOUSEEVENTF_MIDDLEUP,0,0,0,0);
+}
+
 bool MouseController::positionFromPayload(const QByteArray & payload, int & x, int & y)
 {
 

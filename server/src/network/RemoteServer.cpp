@@ -56,8 +56,18 @@ RemoteServer::~RemoteServer()
 {
     emit stopCaptureRequested();
 
-    m_captureThread->quit();
-    m_captureThread->wait();
+    if(m_currClientSocket){
+        m_currClientSocket->disconnectFromHost();
+        m_currClientSocket=nullptr;
+    }
+
+   
+   if(m_captureThread){
+        m_captureThread->quit();
+        m_captureThread->wait();
+    }
+
+    MouseController::releaseAllButtons();
 }
 
 bool RemoteServer::listen(quint16 port)
@@ -165,6 +175,8 @@ void RemoteServer::onReadyRead()
 void RemoteServer::onClientDisconnected()
 {
     emit stopCaptureRequested();
+
+    MouseController::releaseAllButtons();
 
     auto *client = qobject_cast<QTcpSocket *>(sender());
     if (!client) {

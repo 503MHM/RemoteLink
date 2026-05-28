@@ -53,6 +53,8 @@ qt_add_executable(server
     src/capture/CaptureWorker.cpp
     src/control/KeyboardController.h
     src/control/KeyboardController.cpp
+    src/network/ServerWorker.h
+    src/network/ServerWorker.cpp
     
 )
 
