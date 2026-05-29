@@ -2,9 +2,11 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QThread>
 
 class RemoteServer;
 class DiscoveryResponder;
+class ServerWorker;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -22,7 +24,10 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    RemoteServer *m_server = nullptr;
+    //RemoteServer *m_server = nullptr;
+
+    QThread *m_serverThread=nullptr;
+    ServerWorker *m_serverWorker=nullptr;
 
     DiscoveryResponder *m_discoveryResponder;
 };

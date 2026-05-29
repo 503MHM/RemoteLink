@@ -56,8 +56,18 @@ RemoteServer::~RemoteServer()
 {
     emit stopCaptureRequested();
 
-    m_captureThread->quit();
-    m_captureThread->wait();
+    if(m_currClientSocket){
+        m_currClientSocket->disconnectFromHost();
+        m_currClientSocket=nullptr;
+    }
+
+   
+   if(m_captureThread){
+        m_captureThread->quit();
+        m_captureThread->wait();
+    }
+
+    MouseController::releaseAllButtons();
 }
 
 bool RemoteServer::listen(quint16 port)
@@ -114,15 +124,13 @@ void RemoteServer::onReadyRead()
 
         //收到心跳包后启动让截图子线程启动
         if(packet->type==MessageType::Heartbeat){
-            //m_frameTimer.start(200);
             emit startCaptureRequested(16);
         }
 
-        //收到鼠标点击事件
-        else if(packet->type==MessageType::MouseClick){
-            //qDebug()<<packet->payload;
-            MouseController::clickFromPayload(packet->payload);
-        }
+        // //收到鼠标点击事件
+        // else if(packet->type==MessageType::MouseClick){
+        //     MouseController::clickFromPayload(packet->payload);
+        // }
         
         //收到鼠标移动事件
         else if(packet->type==MessageType::MouseMove){
@@ -133,6 +141,15 @@ void RemoteServer::onReadyRead()
         else if(packet->type==MessageType::MouseWheel){
             MouseController::wheelFromPayload(packet->payload);
         }
+
+        else if(packet->type==MessageType::MousePress){
+            MouseController::pressFromPayload(packet->payload);
+        }
+
+        else if(packet->type==MessageType::MouseRelease){
+            MouseController::releaseFromPayload(packet->payload);
+        }
+
 
         //键盘键入
         else if(packet->type==MessageType::KeyEvent){
@@ -158,6 +175,8 @@ void RemoteServer::onReadyRead()
 void RemoteServer::onClientDisconnected()
 {
     emit stopCaptureRequested();
+
+    MouseController::releaseAllButtons();
 
     auto *client = qobject_cast<QTcpSocket *>(sender());
     if (!client) {

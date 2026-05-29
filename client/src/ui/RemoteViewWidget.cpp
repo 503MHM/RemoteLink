@@ -14,6 +14,29 @@ RemoteViewWidget::RemoteViewWidget(QWidget *parent)
     m_moveTimer.start();
 }
 
+void RemoteViewWidget::mousePressEvent(QMouseEvent *ev)
+{
+    QPointF pos=ev->position();
+    
+    double xRatio=-1;
+    double yRatio=-1;
+    if(!positionToRatio(pos,xRatio,yRatio)) return;
+
+    if(ev->button()==Qt::LeftButton){
+        emit mousePressed(xRatio,yRatio,"left");
+    }
+    else if(ev->button()==Qt::RightButton){
+        emit mousePressed(xRatio,yRatio,"right");
+    }
+    else if(ev->button()==Qt::MiddleButton){
+        emit mousePressed(xRatio,yRatio,"middle");
+    }
+
+    setFocus();
+    QLabel::mousePressEvent(ev);
+
+}
+
 void RemoteViewWidget::mouseReleaseEvent(QMouseEvent *ev)
 {
 
@@ -25,9 +48,12 @@ void RemoteViewWidget::mouseReleaseEvent(QMouseEvent *ev)
     if(xRatio==-1 || yRatio==-1) return;
 
     if (ev->button() == Qt::LeftButton) {
-        emit mouseClicked(xRatio, yRatio, "left");
+        emit mouseReleased(xRatio, yRatio, "left");
     } else if (ev->button() == Qt::RightButton) {
-        emit mouseClicked(xRatio, yRatio, "right");
+        emit mouseReleased(xRatio, yRatio, "right");
+    }
+    else if(ev->button()==Qt::MiddleButton){
+        emit mouseReleased(xRatio, yRatio, "middle");
     }
 
     QLabel::mouseReleaseEvent(ev);

@@ -22,7 +22,7 @@ void CaptureWorker::startCaptureWork(quint16 intervalMS)
             // QElapsedTimer timer;
             // timer.start();
 
-            QByteArray frameData = ScreenCapture::captureJpeg(60);
+            QByteArray frameData = sc.captureJpeg(60);
 
             //qDebug()<< "[server] captureJpeg ms =" << timer.elapsed()
             //<< "size =" << frameData.size();

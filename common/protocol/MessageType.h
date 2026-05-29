@@ -12,6 +12,8 @@ enum class MessageType : quint16
     MouseMove = 20,
     MouseClick = 21,
     MouseWheel = 22,
+    MousePress = 23,
+    MouseRelease = 24,
     FileBegin = 30,
     FileData = 31,
     FileEnd = 32,

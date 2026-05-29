@@ -41,20 +41,20 @@ void RemoteSession::sendHeartbeat()
     qDebug() << "[client] heartbeat sent, bytes =" << data.size();
 }
 
-void RemoteSession::sendMouseClick(double xRatio, double yRatio,const QString &btn)
-{
-    //构建json文本
-    QJsonObject obj;
-    obj["button"]=btn;
-    obj["xRatio"]=xRatio;
-    obj["yRatio"]=yRatio;
+// void RemoteSession::sendMouseClick(double xRatio, double yRatio,const QString &btn)
+// {
+//     //构建json文本
+//     QJsonObject obj;
+//     obj["button"]=btn;
+//     obj["xRatio"]=xRatio;
+//     obj["yRatio"]=yRatio;
 
-    //将json文本转换为字节数组
-    QByteArray payload=QJsonDocument(obj).toJson(QJsonDocument::Compact);
+//     //将json文本转换为字节数组
+//     QByteArray payload=QJsonDocument(obj).toJson(QJsonDocument::Compact);
 
-    //发送
-    sendPacket(MessageType::MouseClick,payload);
-}
+//     //发送
+//     sendPacket(MessageType::MouseClick,payload);
+// }
 
 void RemoteSession::sendMouseMove(double xRatio, double yRatio)
 {
@@ -67,6 +67,32 @@ void RemoteSession::sendMouseMove(double xRatio, double yRatio)
 
     //发送
     sendPacket(MessageType::MouseMove,payload);
+}
+
+void RemoteSession::sendMousePress(double xRatio, double yRatio, const QString &btn)
+{
+    //构建json
+    QJsonObject obj;
+    obj["xRatio"]=xRatio;
+    obj["yRatio"]=yRatio;
+    obj["button"]=btn;
+
+    QByteArray payload=QJsonDocument(obj).toJson();
+
+    sendPacket(MessageType::MousePress,payload);
+}
+
+void RemoteSession::sendMouseRelease(double xRatio, double yRatio, const QString &btn)
+{
+    //构建json
+    QJsonObject obj;
+    obj["xRatio"]=xRatio;
+    obj["yRatio"]=yRatio;
+    obj["button"]=btn;
+
+    QByteArray payload=QJsonDocument(obj).toJson();
+
+    sendPacket(MessageType::MouseRelease,payload);
 }
 
 bool RemoteSession::sendPacket(RemoteLink::MessageType type, const QByteArray &payload)

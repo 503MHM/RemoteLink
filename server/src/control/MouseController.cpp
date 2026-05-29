@@ -7,35 +7,35 @@
 
 #include <windows.h>
 
-bool MouseController::clickFromPayload(const QByteArray & payload)
-{
+// bool MouseController::clickFromPayload(const QByteArray & payload)
+// {
 
-    int x = 0;
-    int y = 0;
+//     int x = 0;
+//     int y = 0;
 
-    if (!positionFromPayload(payload, x, y)) {
-        return false;
-    }
+//     if (!positionFromPayload(payload, x, y)) {
+//         return false;
+//     }
 
-    QJsonDocument doc = QJsonDocument::fromJson(payload);
-    if (!doc.isObject()) {
-        return false;
-    }
-    QJsonObject obj = doc.object();
-    QString btn = obj.value("button").toString();
+//     QJsonDocument doc = QJsonDocument::fromJson(payload);
+//     if (!doc.isObject()) {
+//         return false;
+//     }
+//     QJsonObject obj = doc.object();
+//     QString btn = obj.value("button").toString();
 
-    SetCursorPos(x, y);
+//     SetCursorPos(x, y);
 
-    if (btn == "left") {
-        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-    } else if (btn == "right") {
-        mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
-        mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
-    }
+//     if (btn == "left") {
+//         mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+//         mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+//     } else if (btn == "right") {
+//         mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
+//         mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
+//     }
 
-    return true;
-}
+//     return true;
+// }
 
 bool MouseController::moveFromPayload(const QByteArray & payload)
 {
@@ -73,6 +73,84 @@ bool MouseController::wheelFromPayload(const QByteArray &payload)
 
 
     return true;
+}
+
+bool MouseController::pressFromPayload(const QByteArray &payload)
+{
+
+    //解析json
+    QJsonDocument doc=QJsonDocument::fromJson(payload);
+    if(!doc.isObject()){
+        return false;
+    }
+    QJsonObject obj=doc.object();
+
+    QString btn=obj.value("button").toString();
+    int x=-1;
+    int y=-1;
+
+    if(!positionFromPayload(payload,x,y)){
+        return false;
+    }
+    if(x==-1 || y==-1) return false;
+
+    if(btn=="left"){
+        SetCursorPos(x,y);
+        mouse_event(MOUSEEVENTF_LEFTDOWN,0,0,0,0);
+    }
+    else if(btn=="right"){
+        SetCursorPos(x,y);
+        mouse_event(MOUSEEVENTF_RIGHTDOWN,0,0,0,0);
+    }
+    else if(btn=="middle"){
+        SetCursorPos(x,y);
+        mouse_event(MOUSEEVENTF_MIDDLEDOWN,0,0,0,0);
+    }
+
+    return true;
+}
+
+bool MouseController::releaseFromPayload(const QByteArray &payload)
+{
+
+    //解析json
+    QJsonDocument doc=QJsonDocument::fromJson(payload);
+    if(!doc.isObject()){
+        return false;
+    }
+    QJsonObject obj=doc.object();
+
+    QString btn=obj.value("button").toString();
+    int x=-1;
+    int y=-1;
+
+    if(!positionFromPayload(payload,x,y)){
+        return false;
+    }
+    if(x==-1 || y==-1) return false;
+
+    if(btn=="left"){
+        SetCursorPos(x,y);
+        mouse_event(MOUSEEVENTF_LEFTUP,0,0,0,0);
+    }
+    else if(btn=="right"){
+        SetCursorPos(x,y);
+        mouse_event(MOUSEEVENTF_RIGHTUP,0,0,0,0);
+    }
+    else if(btn=="middle"){
+        SetCursorPos(x,y);
+        mouse_event(MOUSEEVENTF_MIDDLEUP,0,0,0,0);
+    }
+
+    return true;
+}
+
+void MouseController::releaseAllButtons()
+{
+
+    mouse_event(MOUSEEVENTF_LEFTUP,0,0,0,0);
+    mouse_event(MOUSEEVENTF_RIGHTUP,0,0,0,0);
+    mouse_event(MOUSEEVENTF_MIDDLEUP,0,0,0,0);
 }
 
 bool MouseController::positionFromPayload(const QByteArray & payload, int & x, int & y)

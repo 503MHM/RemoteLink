@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QTimer>
 
+#include "ScreenCapture.h"
+
 class CaptureWorker : public QObject{
     Q_OBJECT
 
@@ -15,6 +17,8 @@ public slots:
     void stopCaptureWork();
 private:
     QTimer *m_timer=nullptr;
+
+    ScreenCapture sc;
 
 signals:
     void frameReady(const QByteArray &frameData);

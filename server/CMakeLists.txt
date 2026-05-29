@@ -53,6 +53,8 @@ qt_add_executable(server
     src/capture/CaptureWorker.cpp
     src/control/KeyboardController.h
     src/control/KeyboardController.cpp
+    src/network/ServerWorker.h
+    src/network/ServerWorker.cpp
     
 )
 
@@ -62,6 +64,8 @@ target_link_libraries(server
         Qt::Widgets
         Qt::Network
         remotelink_common
+        d3d11
+        dxgi
 )
 
 target_include_directories(server
