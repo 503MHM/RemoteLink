@@ -10,11 +10,10 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    /*, m_server(new RemoteServer(this))*/
 {
     ui->setupUi(this);
     this->setWindowTitle("server");
-    //m_server->listen(TcpPort);
+    
 
     //创建server子线程
     m_serverThread=new QThread(this);

@@ -127,10 +127,6 @@ void RemoteServer::onReadyRead()
             emit startCaptureRequested(16);
         }
 
-        // //收到鼠标点击事件
-        // else if(packet->type==MessageType::MouseClick){
-        //     MouseController::clickFromPayload(packet->payload);
-        // }
         
         //收到鼠标移动事件
         else if(packet->type==MessageType::MouseMove){

@@ -5,7 +5,7 @@
 class MouseController{
 
 public:
-    //static bool clickFromPayload(const QByteArray &payload);
+
     static bool moveFromPayload(const QByteArray &payload);
     static bool wheelFromPayload(const QByteArray &payload);
     static bool pressFromPayload(const QByteArray &payload);

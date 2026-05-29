@@ -7,35 +7,6 @@
 
 #include <windows.h>
 
-// bool MouseController::clickFromPayload(const QByteArray & payload)
-// {
-
-//     int x = 0;
-//     int y = 0;
-
-//     if (!positionFromPayload(payload, x, y)) {
-//         return false;
-//     }
-
-//     QJsonDocument doc = QJsonDocument::fromJson(payload);
-//     if (!doc.isObject()) {
-//         return false;
-//     }
-//     QJsonObject obj = doc.object();
-//     QString btn = obj.value("button").toString();
-
-//     SetCursorPos(x, y);
-
-//     if (btn == "left") {
-//         mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-//         mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-//     } else if (btn == "right") {
-//         mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
-//         mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
-//     }
-
-//     return true;
-// }
 
 bool MouseController::moveFromPayload(const QByteArray & payload)
 {

@@ -24,7 +24,7 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    //RemoteServer *m_server = nullptr;
+
 
     QThread *m_serverThread=nullptr;
     ServerWorker *m_serverWorker=nullptr;
