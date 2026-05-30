@@ -135,17 +135,31 @@ qint64 RemoteSession::bytesToWrite() const
     return m_socket.bytesToWrite();
 }
 
+bool RemoteSession::isConnected()
+{
+    if(m_socket.state()==QAbstractSocket::SocketState::ConnectedState){
+        return true;
+    }
+
+    return false;
+}
+
+void RemoteSession::disConnectFromHost()
+{
+    m_socket.disconnectFromHost();
+}
+
 void RemoteSession::onConnected()
 {
     qDebug() << "[client] connected";
-    emit connected();
+    emit this->connected();
     sendHeartbeat();
 }
 
 void RemoteSession::onDisconnected()
 {
     qDebug() << "[client] disconnected";
-    emit disconnected();
+    emit this->disconnected();
 }
 
 void RemoteSession::onErrorOccurred(QAbstractSocket::SocketError error)

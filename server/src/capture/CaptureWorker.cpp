@@ -19,13 +19,8 @@ void CaptureWorker::startCaptureWork(quint16 intervalMS)
         m_timer = new QTimer(this);
 
         connect(m_timer, &QTimer::timeout, this, [this]() {
-            // QElapsedTimer timer;
-            // timer.start();
 
-            QByteArray frameData = sc.captureJpeg(60);
-
-            //qDebug()<< "[server] captureJpeg ms =" << timer.elapsed()
-            //<< "size =" << frameData.size();
+            QByteArray frameData = sc.captureJpeg(100);
 
             if (!frameData.isEmpty()) {
                 emit frameReady(frameData);

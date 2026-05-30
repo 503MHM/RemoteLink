@@ -10,6 +10,7 @@ public:
     FrameDecodeWorker(QObject *partent=nullptr);
 
 public slots:
+    //解码帧数据
     void decodeFrame(const QByteArray &jpegData);
 
 signals:

@@ -53,12 +53,13 @@ private:
 private slots:
     void onServerFound(const QString &ip, quint16 tcpPort, const QString &deviceName);
 
-    void onItemDoubleClicked(QListWidgetItem *item);
+    void onConnectBtnClicked();
     void onFrameReceived(const QImage &image);
-    void on_sendFile_btn_clicked();
 
     void onFrameDataReceived(const QByteArray &frameData);
     void onFrameDecoded(const QImage &image);
     void onFrameDecodeFailed();
+    void on_sendFile_pushButton_clicked();
+    void on_disconnect_pushButton_clicked();
 };
 #endif // MAINWINDOW_H
