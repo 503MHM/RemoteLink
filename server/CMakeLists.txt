@@ -34,6 +34,10 @@ install(SCRIPT ${deploy_script})
 ]]
 
 
+qt_add_resources(SERVER_RESOURCES_FILE
+    ../resources/server/server.qrc
+)
+
 qt_add_executable(server
     main.cpp
     src/network/RemoteServer.cpp
@@ -55,6 +59,7 @@ qt_add_executable(server
     src/control/KeyboardController.cpp
     src/network/ServerWorker.h
     src/network/ServerWorker.cpp
+    ${SERVER_RESOURCES_FILE}
     
 )
 

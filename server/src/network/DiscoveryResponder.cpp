@@ -9,6 +9,7 @@ DiscoveryResponder::DiscoveryResponder(QObject *parent):
     QObject(parent)
 {
     m_socket=new QUdpSocket(this);
+    connect(m_socket,&QUdpSocket::readyRead,this,&DiscoveryResponder::onReadyRead);    
 
 }
 
@@ -23,11 +24,22 @@ bool DiscoveryResponder::start(quint16 discoveryPort, quint16 tcpPort)
     bool flag=m_socket->bind(QHostAddress::Any,discoveryPort,QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     if(!flag) return false;
     //监听udp数据
-    connect(m_socket,&QUdpSocket::readyRead,this,&DiscoveryResponder::onReadyRead);    
     m_tcpPort=tcpPort;
     qDebug() << "[server] discovery listening on port" << discoveryPort;
 
     return flag;
+}
+
+void DiscoveryResponder::stop()
+{
+    if(m_socket){
+        m_socket->close();
+    }
+}
+
+bool DiscoveryResponder::isRunning()
+{
+    return m_socket && m_socket->state()==QAbstractSocket::SocketState::BoundState;
 }
 
 void DiscoveryResponder::onReadyRead(){

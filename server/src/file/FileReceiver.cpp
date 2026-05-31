@@ -48,6 +48,9 @@ bool FileReceiver::handleFileBegin(const QByteArray &payload)
     m_totalBytes=fileSize;
     m_receivedBytes=0;
 
+    //发送给UI文件信息
+    emit receiveStarted(fileName,m_totalBytes);
+
     qDebug() << "[file] begin:" << savePath << "size =" << m_totalBytes;
     return true;
 }
@@ -67,6 +70,9 @@ bool FileReceiver::handleFileData(const QByteArray &payload)
     }
 
     m_receivedBytes+=payload.size();
+
+    //发送给UI文件信息
+    emit receiveProgress(m_receivedBytes,m_totalBytes);
 
     qDebug() << "[file] progress:" << m_receivedBytes << "/" << m_totalBytes;
     return true;
@@ -93,6 +99,10 @@ bool FileReceiver::handleFileEnd(const QByteArray &payload)
     }
 
     bool ok = (m_receivedBytes == m_totalBytes);
+
+    //发送给UI文件信息
+    emit receiveFinished(ok,QFileInfo(m_file).absoluteFilePath());
+
 
     qDebug() << "[file] end, received =" << m_receivedBytes
              << "total =" << m_totalBytes

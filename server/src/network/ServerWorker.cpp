@@ -20,6 +20,15 @@ void ServerWorker::start(quint16 port){
     }
 
     m_server=new RemoteServer(this);
+
+    connect(m_server,&RemoteServer::clientConnected,this,&ServerWorker::clientConnected);
+    connect(m_server,&RemoteServer::clientDisconnected,this,&ServerWorker::clientDisconnected);
+
+    connect(m_server,&RemoteServer::receiveStarted,this,&ServerWorker::receiveStarted);
+    connect(m_server,&RemoteServer::receiveProgress,this,&ServerWorker::receiveProgress);
+    connect(m_server,&RemoteServer::receiveFinished,this,&ServerWorker::receiveFinished);
+    connect(m_server,&RemoteServer::receiveError,this,&ServerWorker::receiveError);
+
     bool ok=m_server->listen(port);
 
     emit started(ok);
@@ -44,4 +53,14 @@ void ServerWorker::stop()
     delete m_server;
     m_server=nullptr;
     emit stoped();
+}
+
+void ServerWorker::disconnectClient()
+{
+
+    if(!m_server){
+        return;
+    }
+
+    m_server->disconnectClient();
 }
