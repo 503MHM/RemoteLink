@@ -15,8 +15,13 @@ public:
 
 
 public slots:
+    //开启服务
     void start(quint16 port);
+    
+    //停止服务
     void stop();
+
+    //断开和client连接
     void disconnectClient();
 
 signals:

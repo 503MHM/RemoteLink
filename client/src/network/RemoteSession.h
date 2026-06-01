@@ -48,8 +48,8 @@ signals:
     //已解包的原始数据
     void frameDataReceived(const QByteArray &frameData);
 
-    void bytesWritten(qint64 bytes);
-
+    //socket 写缓冲低于低水位
+    void writeBufferBeLowWatermark();
 
 private slots:
     void onConnected();

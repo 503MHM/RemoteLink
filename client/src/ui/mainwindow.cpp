@@ -25,6 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     this->setWindowTitle("Client");
+    this->setWindowIcon(QIcon(":/icon/icons/windowIcon.png"));
 
     QFile styleFile(":/styles/client_style.qss");
     if (styleFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -183,13 +184,8 @@ void MainWindow::onConnectBtnClicked(){
 
 void MainWindow::onFrameReceived(const QImage &image){
     auto pixmap = QPixmap::fromImage(image);
-    // const QSize targetSize = ui->main_label->contentsRect().size();
-    // if (targetSize.isEmpty()) {
-    //     return;
-    // }
 
     ui->main_label->setPixmap(
-    /*pixmap.scaled(targetSize*/
     pixmap.scaled(ui->main_label->size(),
     Qt::KeepAspectRatio,
     Qt::SmoothTransformation)

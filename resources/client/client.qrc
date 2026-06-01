@@ -7,5 +7,6 @@
         <file>icons/search.png</file>
         <file>icons/disconnected.png</file>
         <file>icons/combo-arrow.svg</file>
+        <file>icons/windowIcon.png</file>
     </qresource>
 </RCC>

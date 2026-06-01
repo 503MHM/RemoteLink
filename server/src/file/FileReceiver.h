@@ -10,8 +10,25 @@ class FileReceiver : public QObject{
 public:
     FileReceiver(QObject *partent=nullptr);
 
+    /**
+     * @brief 创建并打开文件，存储文件的相关信息
+     * @param payload 文件传输初始数据,包含文件名、文件ID、总字节数等信息
+     * @return bool 解析成功返回true,失败返回false
+     */
     bool handleFileBegin(const QByteArray &payload);
+
+    /**
+     * @brief 写入文件
+     * @param payload 文件数据块,包含文件分片数据
+     * @return bool 写入成功返回true,失败返回false
+     */
     bool handleFileData(const QByteArray &payload);
+
+    /**
+     * @brief 处理文件结束传输的信号
+     * @param payload 文件结束数据,可能包含校验信息
+     * @return bool 处理成功返回true,失败返回false
+     */
     bool handleFileEnd(const QByteArray &payload);
 
 signals:

@@ -20,7 +20,14 @@ RemoteSession::RemoteSession(QObject *parent)
 
     m_socket.setProxy(QNetworkProxy::NoProxy);
 
-    connect(&m_socket,&QTcpSocket::bytesWritten,this,&RemoteSession::bytesWritten);
+    connect(&m_socket,&QTcpSocket::bytesWritten,this,[this](quint64 bytes){
+        constexpr qint64 LowWatrmark=512*1024;      //低水位512KB
+    
+        if(m_socket.bytesToWrite()<=LowWatrmark){
+            //低于低水位就让子线程继续读取下一个数据块
+            emit writeBufferBeLowWatermark();
+        }
+    });
 }
 
 void RemoteSession::connectToServer(const QString &address, quint16 port)

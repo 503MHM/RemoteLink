@@ -58,6 +58,7 @@ void FileTransferClient::sendFile(const QString &filePath, RemoteSession *sessio
     constexpr qint64 HightWatermark=2*1024*1024;
     constexpr qint64 LowWatermark=512*1024;
 
+    //请求读取下一个数据块
     auto requestNextChunk=[this,session,HightWatermark](){
         if(m_cancelRequested){
             return;
@@ -75,13 +76,11 @@ void FileTransferClient::sendFile(const QString &filePath, RemoteSession *sessio
     };
 
     //监听 socket 排水
-    connect(session,&RemoteSession::bytesWritten,m_worker,[this,session,requestNextChunk](qint64 bytes){
-        if(m_cancelRequested) return;
-
-        if(session->bytesToWrite()<=LowWatermark){
-            requestNextChunk();
-        }
-    });
+    connect(session,
+            &RemoteSession::writeBufferBeLowWatermark,
+            m_worker,
+            &FileTransferWorker::readNextChunk,
+            Qt::QueuedConnection);
 
 
     //子线程发来文件开始信息

@@ -19,7 +19,6 @@ bool MouseController::moveFromPayload(const QByteArray & payload)
     }
 
     SetCursorPos(x, y);
-    //qDebug()<<"[server] mouse move:"<<x<<y;
 
     return true;
 }

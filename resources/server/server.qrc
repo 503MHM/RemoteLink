@@ -2,4 +2,7 @@
     <qresource prefix="/styles">
         <file>server_style.qss</file>
     </qresource>
+    <qresource prefix="/icon">
+        <file>icons/windowIcon.png</file>
+    </qresource>
 </RCC>

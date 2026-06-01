@@ -111,11 +111,6 @@ void RemoteViewWidget::keyReleaseEvent(QKeyEvent *ev)
     emit keyEvent(ev->key(),int(ev->modifiers()),false,ev->text());
 }
 
-/// @brief 获取坐标比例
-/// @param pos 
-/// @param xRatio 
-/// @param yRatio 
-/// @return 
 bool RemoteViewWidget::positionToRatio(const QPointF &pos, double &xRatio, double &yRatio)
 {
     QPixmap pix = pixmap();

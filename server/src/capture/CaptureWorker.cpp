@@ -35,5 +35,7 @@ void CaptureWorker::startCaptureWork(quint16 intervalMS)
 
 void CaptureWorker::stopCaptureWork()
 {
-    m_timer->stop();
+    if(m_timer){
+        m_timer->stop();
+    }
 }

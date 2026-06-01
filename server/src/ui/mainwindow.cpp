@@ -18,6 +18,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     this->setWindowTitle("server");
+    this->setWindowIcon(QIcon(":/icon/icons/windowIcon.png"));
 
     QFile styleFile(":/styles/server_style.qss");
     if (styleFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -33,14 +34,14 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_serverThread,&QThread::finished,m_serverWorker,&QObject::deleteLater);
 
     connect(m_serverWorker,&ServerWorker::started,this,[this](bool ok){
-        m_serverListening=ok;
+        m_serverStarted=ok;
         ui->startORStop_pushButton->setText(ok? "停止服务" : "启动服务");
 
         ui->log_textEdit->append(getNowTime()+" 已启动服务");
     });
 
     connect(m_serverWorker,&ServerWorker::stoped,this,[this](){
-        m_serverListening=false;
+        m_serverStarted=false;
         ui->startORStop_pushButton->setText("启动服务");
 
         ui->connectStatus_label->setText("未连接");
@@ -93,11 +94,11 @@ MainWindow::MainWindow(QWidget *parent)
         if(m_clientTimeTimer){
             m_clientTimeTimer->stop();
         }
-        ui->serverTime_label->setText("--:--:--");
-
+        
         ui->disconnect_pushButton->setEnabled(false);
 
-        ui->log_textEdit->append(getNowTime()+" 已断开连接");
+        ui->log_textEdit->append(getNowTime()+" 已断开连接,连接时长:"+ui->serverTime_label->text());
+        ui->serverTime_label->setText("--:--:--");
     });
 
     //设置运行时间
@@ -171,7 +172,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_startORStop_pushButton_clicked()
 {
-    if(m_serverListening){
+    if(m_serverStarted){
 
         //关闭UDP服务
         if(m_discoveryResponder){
@@ -180,7 +181,7 @@ void MainWindow::on_startORStop_pushButton_clicked()
             m_discoveryResponder=nullptr;
         }
 
-        m_serverListening=false;
+        m_serverStarted=false;
         ui->startORStop_pushButton->setText("启动服务");
 
         QMetaObject::invokeMethod(m_serverWorker,"stop",Qt::QueuedConnection);
