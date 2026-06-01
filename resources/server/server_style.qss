@@ -1,0 +1,213 @@
+QMainWindow {
+    background: #f4f7f9;
+    color: #18212b;
+    font-family: "Microsoft YaHei UI", "Segoe UI", Arial;
+    font-size: 13px;
+}
+
+#centralwidget {
+    background: #f4f7f9;
+}
+
+QGroupBox {
+    margin-top: 18px;
+    padding: 18px 16px 16px 16px;
+    border: 1px solid #d4dde7;
+    border-radius: 8px;
+    background: #ffffff;
+    font-weight: 700;
+    color: #253244;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 14px;
+    padding: 0 8px;
+    background: #ffffff;
+    color: #0f766e;
+}
+
+QLabel {
+    color: #344255;
+}
+
+#label,
+#label_3,
+#label_4,
+#label_6,
+#label_8,
+#label_10 {
+    color: #66758a;
+    font-weight: 600;
+}
+
+#deviceName_label,
+#ip_label,
+#connectStatus_label,
+#serverTime_label,
+#receiverFile_label {
+    min-height: 24px;
+    padding: 3px 10px;
+    border: 1px solid #dbe4ee;
+    border-radius: 5px;
+    background: #f8fafc;
+    color: #1f2a37;
+    font-weight: 600;
+}
+
+#connectStatus_label {
+    color: #0f766e;
+    background: #ecfdf9;
+    border-color: #b7e4df;
+}
+
+#serverTime_label {
+    color: #1d4ed8;
+    background: #eef4ff;
+    border-color: #bfcef8;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+}
+
+#receiverFile_label {
+    color: #475569;
+}
+
+QLineEdit {
+    min-height: 28px;
+    padding: 3px 10px;
+    border: 1px solid #c9d4e2;
+    border-radius: 5px;
+    background: #ffffff;
+    color: #1f2a37;
+    placeholder-text-color: #94a3b8;
+    selection-background-color: #cceeea;
+}
+
+QLineEdit:hover {
+    border-color: #9fb0c4;
+}
+
+QLineEdit:focus {
+    border-color: #0f766e;
+    background: #fbfefe;
+}
+
+QPushButton {
+    min-height: 28px;
+    padding: 3px 16px;
+    border: 1px solid #c9d4e2;
+    border-radius: 5px;
+    background: #ffffff;
+    color: #1f2a37;
+    font-weight: 600;
+}
+
+QPushButton:hover {
+    background: #f6f9fc;
+    border-color: #9fb0c4;
+}
+
+QPushButton:pressed {
+    background: #e9eef5;
+    border-color: #7f93ad;
+}
+
+QPushButton:disabled {
+    background: #eef2f6;
+    color: #9aa6b2;
+    border-color: #d8e0ea;
+}
+
+#startORStop_pushButton {
+    background: #0f766e;
+    border-color: #0f766e;
+    color: #ffffff;
+}
+
+#startORStop_pushButton:hover {
+    background: #115e59;
+    border-color: #115e59;
+}
+
+#startORStop_pushButton:pressed {
+    background: #134e4a;
+    border-color: #134e4a;
+}
+
+#disconnect_pushButton {
+    background: #fff7f6;
+    border-color: #f2b8b5;
+    color: #b42318;
+}
+
+#disconnect_pushButton:hover {
+    background: #fee4e2;
+    border-color: #f99b95;
+}
+
+#disconnect_pushButton:disabled {
+    background: #f4f6f8;
+    border-color: #d8e0ea;
+    color: #a8b2bf;
+}
+
+QProgressBar {
+    min-height: 20px;
+    border: 1px solid #c9d4e2;
+    border-radius: 6px;
+    background: #eef3f8;
+    color: #344255;
+    font-weight: 600;
+    text-align: center;
+}
+
+QProgressBar::chunk {
+    border-radius: 5px;
+    background: #0f766e;
+}
+
+QTextEdit {
+    border: 1px solid #c9d4e2;
+    border-radius: 6px;
+    background: #0f1720;
+    color: #d6e2ef;
+    selection-background-color: #1d4ed8;
+    selection-color: #ffffff;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 12px;
+    padding: 8px;
+}
+
+QScrollBar:vertical {
+    width: 10px;
+    margin: 2px;
+    border: 0;
+    background: transparent;
+}
+
+QScrollBar::handle:vertical {
+    min-height: 28px;
+    border-radius: 5px;
+    background: #95a3b5;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #77869a;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QMenuBar {
+    background: #f8fafc;
+    border-bottom: 1px solid #d7dee7;
+}
+
+QStatusBar {
+    background: #f8fafc;
+    border-top: 1px solid #d7dee7;
+    color: #5a6675;
+}

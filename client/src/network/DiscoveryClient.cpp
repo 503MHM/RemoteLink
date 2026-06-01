@@ -34,21 +34,6 @@ bool DiscoveryClient::start(quint16 discoveryPort)
     return true;
 }
 
-// void DiscoveryClient::search()
-// {
-//     //创建json对象
-//     QJsonObject obj;
-//     obj["type"]="DISCOVERY";
-//     obj["clientName"]="RemoteLink Client";
-
-//     //转为字节数组发送
-//     QByteArray sendData=QJsonDocument(obj).toJson(QJsonDocument::Compact);
-
-//     //发送
-//     m_socket->writeDatagram(sendData,QHostAddress::Broadcast,m_discoveryPort);
-// }
-
-
 void DiscoveryClient::search()
 {
     QJsonObject obj;

@@ -9,6 +9,7 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include <QThread>
+#include <QString>
 
 class RemoteServer : public QObject
 {
@@ -19,11 +20,14 @@ public:
     ~RemoteServer();
 
     bool listen(quint16 port);
+    void disconnectClient();
+
 
 private slots:
     void onNewConnection();
     void onReadyRead();
     void onClientDisconnected();
+    
 
 private:
     QTcpServer m_server;
@@ -33,6 +37,7 @@ private:
 
     FileReceiver m_fileReceiver;
 
+    //截图子线程
     QThread *m_captureThread;
     CaptureWorker *m_captureWorker;
 
@@ -40,5 +45,14 @@ private:
 signals:
     void startCaptureRequested(quint16 intervalMS);
     void stopCaptureRequested();
+
+    void clientConnected(const QString clientIp, quint16 clientPort,const QString localIp, quint16 localPort);
+    void clientDisconnected();
+
+    //文件相关信号
+    void receiveStarted(const QString &fileName,quint64 totalBytes);
+    void receiveProgress(quint64 receivedBytes,quint64 totalBytes);
+    void receiveFinished(bool ok,QString filePath);
+    void receiveError(const QString &message);
 
 };

@@ -3,6 +3,7 @@
 #include "protocol/PacketCodec.h"
 #include "./control/MouseController.h"
 #include "control/KeyboardController.h"
+#include "file/FileReceiver.h"
 
 #include <QDebug>
 
@@ -50,6 +51,12 @@ RemoteServer::RemoteServer(QObject *parent)
 
 
     connect(m_captureThread, &QThread::finished,m_captureWorker, &QObject::deleteLater);
+
+    //连接文件传输相关信号
+    connect(&m_fileReceiver,&FileReceiver::receiveStarted,this,&RemoteServer::receiveStarted);
+    connect(&m_fileReceiver,&FileReceiver::receiveProgress,this,&RemoteServer::receiveProgress);
+    connect(&m_fileReceiver,&FileReceiver::receiveFinished,this,&RemoteServer::receiveFinished);
+    connect(&m_fileReceiver,&FileReceiver::receiveError,this,&RemoteServer::receiveError);
 }
 
 RemoteServer::~RemoteServer()
@@ -58,6 +65,7 @@ RemoteServer::~RemoteServer()
 
     if(m_currClientSocket){
         m_currClientSocket->disconnectFromHost();
+        m_currClientSocket->deleteLater();
         m_currClientSocket=nullptr;
     }
 
@@ -101,6 +109,15 @@ void RemoteServer::onNewConnection()
         qDebug() << "[server] client connected:" << client->peerAddress().toString() << client->peerPort();
 
         m_currClientSocket=client;
+
+
+        emit clientConnected(
+            client->peerAddress().toString(),
+            client->peerPort(),
+            client->localAddress().toString(),
+            client->localPort()
+        );
+
 
         connect(client, &QTcpSocket::readyRead, this, &RemoteServer::onReadyRead);
         connect(client, &QTcpSocket::disconnected, this, &RemoteServer::onClientDisconnected);
@@ -182,9 +199,24 @@ void RemoteServer::onClientDisconnected()
     qDebug() << "[server] client disconnected";
 
     if (client == m_currClientSocket) {
-        //m_frameTimer.stop();
         m_currClientSocket = nullptr;
+
+        emit clientDisconnected();
     }
 
     client->deleteLater();
+}
+
+void RemoteServer::disconnectClient()
+{
+
+    if(!m_currClientSocket){
+        return;
+    }
+
+    emit stopCaptureRequested();
+    MouseController::releaseAllButtons();
+
+    m_currClientSocket->disconnectFromHost();
+
 }

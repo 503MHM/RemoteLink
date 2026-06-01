@@ -16,7 +16,6 @@ FileTransferWorker::~FileTransferWorker()
 {
 }
 
-//只读取一个chunk发送缓冲区中
 void FileTransferWorker::readNextChunk()
 {
     

@@ -20,7 +20,14 @@ RemoteSession::RemoteSession(QObject *parent)
 
     m_socket.setProxy(QNetworkProxy::NoProxy);
 
-    connect(&m_socket,&QTcpSocket::bytesWritten,this,&RemoteSession::bytesWritten);
+    connect(&m_socket,&QTcpSocket::bytesWritten,this,[this](quint64 bytes){
+        constexpr qint64 LowWatrmark=512*1024;      //低水位512KB
+    
+        if(m_socket.bytesToWrite()<=LowWatrmark){
+            //低于低水位就让子线程继续读取下一个数据块
+            emit writeBufferBeLowWatermark();
+        }
+    });
 }
 
 void RemoteSession::connectToServer(const QString &address, quint16 port)
@@ -135,17 +142,31 @@ qint64 RemoteSession::bytesToWrite() const
     return m_socket.bytesToWrite();
 }
 
+bool RemoteSession::isConnected()
+{
+    if(m_socket.state()==QAbstractSocket::SocketState::ConnectedState){
+        return true;
+    }
+
+    return false;
+}
+
+void RemoteSession::disConnectFromHost()
+{
+    m_socket.disconnectFromHost();
+}
+
 void RemoteSession::onConnected()
 {
     qDebug() << "[client] connected";
-    emit connected();
+    emit this->connected();
     sendHeartbeat();
 }
 
 void RemoteSession::onDisconnected()
 {
     qDebug() << "[client] disconnected";
-    emit disconnected();
+    emit this->disconnected();
 }
 
 void RemoteSession::onErrorOccurred(QAbstractSocket::SocketError error)

@@ -9,7 +9,8 @@ public:
     DiscoveryResponder(QObject *parent=nullptr);
     ~DiscoveryResponder();
     bool start(quint16 discoveryPort,quint16 tcpPort);
-
+    void stop();
+    bool isRunning();
 
 private slots:
     void onReadyRead();

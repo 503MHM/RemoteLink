@@ -13,13 +13,14 @@ private:
     FileTransferWorker *m_worker=nullptr;
     QThread *m_workerThread=nullptr;
     bool m_cancelRequested=false;
-    //bool m_running=false;
 
 public:
     FileTransferClient(QObject *partent=nullptr);
     ~FileTransferClient();
 
+    //
     void sendFile(const QString &filePath,RemoteSession *session);
+    //client 断开时停止文件读取，取消继续读取数据块
     void cancel();
 
 signals:

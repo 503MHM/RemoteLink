@@ -32,7 +32,7 @@ public:
 
     // 捕获一帧屏幕并返回 JPEG 字节数组
     // quality 为 JPEG 压缩质量 (0-100, -1 为默认)
-    QByteArray captureJpeg(int quality = 80);
+    QByteArray captureJpeg(int quality = 100);
 
 private:
     bool initializeDXGI();   // 只在首次调用时执行初始化

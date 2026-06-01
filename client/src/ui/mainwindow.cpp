@@ -12,6 +12,10 @@
 #include <QFileDialog>
 #include <QDir>
 #include <QThread>
+#include <QVariantMap>
+#include <QApplication>
+#include <QFile>
+#include <QSizePolicy>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -21,7 +25,18 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     this->setWindowTitle("Client");
+    this->setWindowIcon(QIcon(":/icon/icons/windowIcon.png"));
+
+    QFile styleFile(":/styles/client_style.qss");
+    if (styleFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qApp->setStyleSheet(QString::fromUtf8(styleFile.readAll()));
+    }
+
+    ui->statusIcon_label->setPixmap(QPixmap(":/icon/icons/disconnected.png").scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
     ui->main_label->setAlignment(Qt::AlignCenter);
+    ui->main_label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    ui->main_label->setMinimumSize(1, 1);
     
     m_fpsTimer.start();
     m_decodeFpsTimer.start();
@@ -51,23 +66,30 @@ MainWindow::MainWindow(QWidget *parent)
 
     //刷新按钮
     connect(ui->refresh_pushButton,&QPushButton::clicked,this,[=](){
-        ui->device_listWidget->clear();
+        ui->device_comboBox->clear();
         ui->status_label->setText("正在搜索局域网设备...");
         m_discoveryClient->search();
     });
 
-    //双击后通过tcp连接某一设备
-    connect(ui->device_listWidget,&QListWidget::itemDoubleClicked,this,&MainWindow::onItemDoubleClicked);
+    //点击连接按钮通过tcp连接某一设备
+    connect(ui->connect_pushButton,&QPushButton::clicked,this,&MainWindow::onConnectBtnClicked);
 
     //状态提示
     connect(m_session,&RemoteSession::connected,this,[this](){
-        ui->status_label->setText("已连接");
-        ui->sendFile_btn->setEnabled(true);
+        ui->status_label->setText("已连接："+ui->device_comboBox->currentText());
+        ui->statusIcon_label->setPixmap(QPixmap(":/icon/icons/connected.png").scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        ui->sendFile_pushButton->setEnabled(true);
+        ui->disconnect_pushButton->setEnabled(true);
+        ui->connect_pushButton->setEnabled(false);
     });
     connect(m_session, &RemoteSession::disconnected,this, [this]() {
         ui->status_label->setText("已断开");
         m_fileTransferClient->cancel();         //断连后让子线程停止继续读文件
-        ui->sendFile_btn->setEnabled(true);
+        ui->sendFile_pushButton->setEnabled(true);
+        ui->disconnect_pushButton->setEnabled(false);
+        ui->connect_pushButton->setEnabled(true);
+        ui->statusIcon_label->setPixmap(QPixmap(":/icon/icons/disconnected.png").scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
     });
     connect(m_session, &RemoteSession::errorOccurred,this, [this](const QString &message) {
         ui->status_label->setText("连接错误：" + message);
@@ -103,13 +125,13 @@ MainWindow::MainWindow(QWidget *parent)
     //完成后可再次选文件
     connect(m_fileTransferClient,&FileTransferClient::finished,this,[=](){
         ui->file_progressBar->setValue(100);
-        ui->sendFile_btn->setEnabled(true);
+        ui->sendFile_pushButton->setEnabled(true);
     });
 
     connect(m_fileTransferClient, &FileTransferClient::errorOccurred,
         this, [this](const QString &message) {
             ui->status_label->setText(message);
-            ui->sendFile_btn->setEnabled(true);
+            ui->sendFile_pushButton->setEnabled(true);
         });
 }
 
@@ -127,27 +149,34 @@ MainWindow::~MainWindow()
 void MainWindow::onServerFound(const QString &ip, quint16 tcpPort, const QString &deviceName){
 
     //检查是否有重复的设备
-    for(int i=0;i<ui->device_listWidget->count();i++){
-        QListWidgetItem *tempItem=ui->device_listWidget->item(i);
-        if(ip==tempItem->data(Qt::UserRole).toString() && tcpPort==tempItem->data(Qt::UserRole+1).toUInt()){
+    for(int i=0;i<ui->device_comboBox->count();i++){
+        QVariantMap itemdata=ui->device_comboBox->itemData(i).toMap();
+        if(itemdata.value("ip")==ip && itemdata.value("tcpPort")==tcpPort){
             return;
         }
     }
 
-    //把设备信息显示到QListWidget中
-    auto *item=new QListWidgetItem;
-    item->setText(deviceName + "  " + ip + ":" + QString::number(tcpPort));
-    item->setData(Qt::UserRole,ip);
-    item->setData(Qt::UserRole+1,tcpPort);
 
-    ui->device_listWidget->addItem(item);
-    ui->status_label->setText("已发现设备：" + QString::number(ui->device_listWidget->count()));
+    QVariantMap data;
+    data["ip"]=ip;
+    data["tcpPort"]=tcpPort;
+    data["deviceName"]=deviceName;
+
+    ui->device_comboBox->addItem(QString("%1  %2:%3").arg(deviceName).arg(ip).arg(tcpPort),data);
+    ui->status_label->setText("已发现设备："+QString::number(ui->device_comboBox->count()));
 }
 
 
-void MainWindow::onItemDoubleClicked(QListWidgetItem *item){
-    QString ip=item->data(Qt::UserRole).toString();
-    quint16 port=item->data(Qt::UserRole+1).toUInt();
+void MainWindow::onConnectBtnClicked(){
+    
+    QVariantMap data=ui->device_comboBox->currentData().toMap();
+    if(data.isEmpty()){
+        return;
+    }
+    
+    
+    QString ip=data.value("ip").toString();
+    quint16 port=data.value("tcpPort").toUInt();
 
     m_session->connectToServer(ip,port);
 }
@@ -155,6 +184,7 @@ void MainWindow::onItemDoubleClicked(QListWidgetItem *item){
 
 void MainWindow::onFrameReceived(const QImage &image){
     auto pixmap = QPixmap::fromImage(image);
+
     ui->main_label->setPixmap(
     pixmap.scaled(ui->main_label->size(),
     Qt::KeepAspectRatio,
@@ -165,22 +195,15 @@ void MainWindow::onFrameReceived(const QImage &image){
 
     if(m_fpsTimer.elapsed()>=1000){
         qDebug()<<"[client] display fps ="<<m_displayFrameCnt;
+        ui->fps_label->setText(QString("fps: %1").arg(m_displayFrameCnt));
+        
         m_displayFrameCnt=0;
         m_fpsTimer.restart();
+        
     }
 }
 
 
-void MainWindow::on_sendFile_btn_clicked()
-{
-    ui->file_progressBar->setValue(0);
-
-    QString filePath=QFileDialog::getOpenFileName(this,"选择要发送的文件",QDir::rootPath(),"all(*.*)");
-    if(filePath.isEmpty()) return;
-    ui->sendFile_btn->setEnabled(false);
-    
-    m_fileTransferClient->sendFile(filePath,m_session);
-}
 
 void MainWindow::onFrameDataReceived(const QByteArray &frameData)
 {
@@ -203,6 +226,7 @@ void MainWindow::onFrameDataReceived(const QByteArray &frameData)
 
 }
 
+//一帧解码完成
 void MainWindow::onFrameDecoded(const QImage &image)
 {
 
@@ -253,3 +277,24 @@ void MainWindow::onFrameDecodeFailed()
 
     m_decodeBusy = false;
 }
+
+void MainWindow::on_sendFile_pushButton_clicked()
+{
+    ui->file_progressBar->setValue(0);
+
+    QString filePath=QFileDialog::getOpenFileName(this,"选择要发送的文件",QDir::rootPath(),"all(*.*)");
+    if(filePath.isEmpty()) return;
+    ui->sendFile_pushButton->setEnabled(false);
+    
+    m_fileTransferClient->sendFile(filePath,m_session);
+}
+
+
+void MainWindow::on_disconnect_pushButton_clicked()
+{
+    if(m_session->isConnected()){
+        m_session->disConnectFromHost();
+        ui->connect_pushButton->setEnabled(true);
+    }
+}
+
