@@ -22,24 +22,17 @@ public:
     bool listen(quint16 port);
     void disconnectClient();
 
+    void stop();
 
 private slots:
     void onNewConnection();
     void onReadyRead();
     void onClientDisconnected();
-    
 
 private:
-    QTcpServer m_server;
-    QTcpSocket *m_currClientSocket;
-    RemoteLink::PacketCodec m_codec;
-    quint32 m_frameSequence;
-
-    FileReceiver m_fileReceiver;
-
-    //截图子线程
-    QThread *m_captureThread;
-    CaptureWorker *m_captureWorker;
+    bool sendPacket(RemoteLink::MessageType type,const QByteArray &payload = QByteArray(),quint32 sequence=0);
+    void sendServerKick();
+    void cleanupClient(bool notifyClient);
 
 
 signals:
@@ -54,5 +47,24 @@ signals:
     void receiveProgress(quint64 receivedBytes,quint64 totalBytes);
     void receiveFinished(bool ok,QString filePath);
     void receiveError(const QString &message);
+
+
+private:
+    QTcpServer m_server;
+    QTcpSocket *m_currClientSocket;
+    RemoteLink::PacketCodec m_codec;
+    quint32 m_frameSequence;
+
+    FileReceiver m_fileReceiver;
+
+    //截图子线程
+    QThread *m_captureThread;
+    CaptureWorker *m_captureWorker;
+
+    //用于提示当前是否已启动截图
+    bool m_captureStarted=false;
+
+    //序列号
+    quint32 m_serverKickSequence=0;
 
 };

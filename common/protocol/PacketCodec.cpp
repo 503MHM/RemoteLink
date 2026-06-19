@@ -33,6 +33,7 @@ void PacketCodec::appendData(const QByteArray &data)
 std::optional<Packet> PacketCodec::takePacket()
 {
     while (m_buffer.size() >= HeaderSize) {
+        // 先从缓冲区头部解析固定长度包头。
         QDataStream headerStream(m_buffer.left(HeaderSize));
         headerStream.setByteOrder(QDataStream::BigEndian);
 
@@ -43,15 +44,18 @@ std::optional<Packet> PacketCodec::takePacket()
         headerStream >> magic >> type >> length >> sequence;
 
         if (magic != PacketMagic) {
+            // 魔数不匹配时丢弃一个字节，尝试重新对齐到下一个包头。
             m_buffer.remove(0, 1);
             continue;
         }
 
         const qsizetype packetSize = HeaderSize + static_cast<qsizetype>(length);
         if (m_buffer.size() < packetSize) {
+            // 数据还没收完整，等待下一次 appendData() 后继续解析。
             return std::nullopt;
         }
 
+        // 取出完整 payload，并从缓冲区移除已经消费的一个完整包。
         Packet packet;
         packet.type = static_cast<MessageType>(type);
         packet.sequence = sequence;

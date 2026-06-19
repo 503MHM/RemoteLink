@@ -28,11 +28,56 @@ RemoteSession::RemoteSession(QObject *parent)
             emit writeBufferBeLowWatermark();
         }
     });
+
+
+    //定时发送心跳包
+    connect(&m_heartbeatTimer,&QTimer::timeout,this,[this](){
+        if(m_socket.state()!= QAbstractSocket::ConnectedState){
+            m_heartbeatTimer.stop();
+            return;
+        }
+
+        if(m_lastPongTime.isValid() && m_lastPongTime.elapsed()>15000){
+            qWarning()<<"[client] heartbeat timeout";
+            
+            m_heartbeatTimer.stop();
+            m_socket.abort();
+            startReconnect();
+            return;
+        }
+
+        sendHeartbeat();
+    });
+
+    //定时重连
+    connect(&m_reconnectTimer,&QTimer::timeout,this,[this](){
+        if(m_socket.state()==QAbstractSocket::ConnectedState){
+            m_reconnectTimer.stop();
+            return;
+        }
+
+        if(m_reconnectCount>=MaxReconnectCount){
+            m_reconnectTimer.stop();
+            emit errorOccurred("[client] reconnect failed");
+            return;
+        }
+
+        m_reconnectCount++;
+
+        qDebug()<<"[client] reconnecting..."<< m_reconnectCount << "/" << MaxReconnectCount;
+    
+        m_socket.abort();
+        m_socket.connectToHost(m_lastAddress,m_lastPort);
+    });
 }
 
 void RemoteSession::connectToServer(const QString &address, quint16 port)
 {
     qDebug() << "[client] connecting to" << address << port;
+    m_lastAddress=address;
+    m_lastPort=port;
+    m_reconnectCount=0;
+    m_manualDisconnect=false;
     m_socket.connectToHost(address, port);
 }
 
@@ -153,20 +198,39 @@ bool RemoteSession::isConnected()
 
 void RemoteSession::disConnectFromHost()
 {
+    m_manualDisconnect=true;
+    m_reconnectTimer.stop();
+    m_heartbeatTimer.stop();
+
     m_socket.disconnectFromHost();
 }
 
 void RemoteSession::onConnected()
 {
     qDebug() << "[client] connected";
+
+    m_reconnectCount=0;
+    m_reconnectTimer.stop();
+    m_manualDisconnect=false;
+
     emit this->connected();
     sendHeartbeat();
+
+    m_lastPongTime.restart();
+    m_heartbeatTimer.start(5000);
 }
 
 void RemoteSession::onDisconnected()
 {
+    m_heartbeatTimer.stop();
+    m_codec.clear();
+
     qDebug() << "[client] disconnected";
     emit this->disconnected();
+
+    if(!m_manualDisconnect){
+        startReconnect();
+    }
 }
 
 void RemoteSession::onErrorOccurred(QAbstractSocket::SocketError error)
@@ -183,11 +247,46 @@ void RemoteSession::onReadyread()
     m_codec.appendData(Recedata);
     while (auto packet=m_codec.takePacket())
     {
+        
+        
         if(packet->type==MessageType::FrameData){
 
             emit frameDataReceived(packet->payload);
 
         }
+
+        else if(packet->type==MessageType::HeartbeatAck){
+            qDebug() << "[client] heartbeat ack received, before restart age ="<< m_lastPongTime.elapsed();
+            
+            m_lastPongTime.restart();
+        }
+
+        else if(packet->type==MessageType::ServerKick){
+            m_manualDisconnect=true;
+            m_reconnectTimer.stop();
+            m_heartbeatTimer.stop();
+            m_socket.disconnectFromHost();
+        }
     }
     
+}
+
+void RemoteSession::startReconnect()
+{
+    if(m_manualDisconnect){
+        return;
+    }
+
+    if(m_lastAddress.isEmpty() || m_lastPort==0){
+        return;
+    }
+
+    if(m_reconnectCount>=MaxReconnectCount){
+        return;
+    }
+
+    if(!m_reconnectTimer.isActive()){
+        m_reconnectTimer.start(3000);
+    }
+
 }

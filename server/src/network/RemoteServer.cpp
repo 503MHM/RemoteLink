@@ -63,12 +63,6 @@ RemoteServer::~RemoteServer()
 {
     emit stopCaptureRequested();
 
-    if(m_currClientSocket){
-        m_currClientSocket->disconnectFromHost();
-        m_currClientSocket->deleteLater();
-        m_currClientSocket=nullptr;
-    }
-
    
    if(m_captureThread){
         m_captureThread->quit();
@@ -141,7 +135,17 @@ void RemoteServer::onReadyRead()
 
         //收到心跳包后启动让截图子线程启动
         if(packet->type==MessageType::Heartbeat){
-            emit startCaptureRequested(16);
+            if(!m_captureStarted){
+                emit startCaptureRequested(16);
+                m_captureStarted=true;
+            }
+            
+            //发送一个心跳包回应
+            if(m_currClientSocket && m_currClientSocket->state()==QAbstractSocket::ConnectedState){
+                sendPacket(MessageType::HeartbeatAck,QByteArray(),packet->sequence);
+                qDebug() << "[server] heartbeat ack sent";
+            }
+
         }
 
         
@@ -187,10 +191,6 @@ void RemoteServer::onReadyRead()
 
 void RemoteServer::onClientDisconnected()
 {
-    emit stopCaptureRequested();
-
-    MouseController::releaseAllButtons();
-
     auto *client = qobject_cast<QTcpSocket *>(sender());
     if (!client) {
         return;
@@ -198,25 +198,69 @@ void RemoteServer::onClientDisconnected()
 
     qDebug() << "[server] client disconnected";
 
+    emit stopCaptureRequested();
+    m_captureStarted = false;
+    MouseController::releaseAllButtons();
+
     if (client == m_currClientSocket) {
         m_currClientSocket = nullptr;
-
         emit clientDisconnected();
     }
 
     client->deleteLater();
 }
 
-void RemoteServer::disconnectClient()
+bool RemoteServer::sendPacket(RemoteLink::MessageType type, const QByteArray &payload, quint32 sequence)
 {
+    if (!m_currClientSocket ||
+        m_currClientSocket->state() != QAbstractSocket::ConnectedState) {
+        return false;
+    }
 
-    if(!m_currClientSocket){
+    Packet packet;
+    packet.type=type;
+    packet.payload=payload;
+    packet.sequence=sequence;
+
+    return m_currClientSocket->write(PacketCodec::encode(packet)) !=-1;
+}
+
+void RemoteServer::sendServerKick()
+{
+    if (sendPacket(MessageType::ServerKick, QByteArray(), m_serverKickSequence++)) {
+        m_currClientSocket->flush();
+    }
+}
+
+void RemoteServer::cleanupClient(bool notifyClient)
+{
+    emit stopCaptureRequested();
+    m_captureStarted = false;
+    MouseController::releaseAllButtons();
+
+    if (!m_currClientSocket) {
         return;
     }
 
-    emit stopCaptureRequested();
-    MouseController::releaseAllButtons();
+    if (notifyClient) {
+        sendServerKick();
+    }
 
+    disconnect(m_currClientSocket, nullptr, this, nullptr);
     m_currClientSocket->disconnectFromHost();
+    m_currClientSocket->deleteLater();
+    m_currClientSocket = nullptr;
 
+    emit clientDisconnected();
+}
+
+void RemoteServer::disconnectClient()
+{
+    cleanupClient(true);
+}
+
+void RemoteServer::stop()
+{
+    m_server.close();
+    cleanupClient(true);
 }

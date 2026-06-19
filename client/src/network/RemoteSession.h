@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QTcpSocket>
 #include <QImage>
+#include <QTimer>
+#include <QElapsedTimer>
 
 #include "protocol/PacketCodec.h"
 
@@ -57,10 +59,23 @@ private slots:
     void onErrorOccurred(QAbstractSocket::SocketError error);
     void onReadyread();
 
+private:
+    void startReconnect();
+
 
 private:
     QTcpSocket m_socket;
     quint32 m_sequence = 1;
 
     RemoteLink::PacketCodec m_codec;
+
+    QTimer m_heartbeatTimer;
+    QElapsedTimer m_lastPongTime;
+
+    QTimer m_reconnectTimer;
+    QString m_lastAddress;
+    quint16 m_lastPort=0;
+    int m_reconnectCount=0;
+    static constexpr int MaxReconnectCount=5;
+    bool m_manualDisconnect=false;
 };

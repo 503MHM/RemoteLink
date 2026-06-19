@@ -9,7 +9,11 @@ ServerWorker::ServerWorker(QObject *partent)
 
 ServerWorker::~ServerWorker()
 {
-    stop();
+    if (m_server) {
+        m_server->stop();
+        delete m_server;
+        m_server = nullptr;
+    }
 }
 
 
@@ -49,6 +53,8 @@ void ServerWorker::stop()
         emit stoped();
         return;
     }
+
+    m_server->stop();
 
     delete m_server;
     m_server=nullptr;
