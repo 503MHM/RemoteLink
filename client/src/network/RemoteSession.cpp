@@ -256,7 +256,7 @@ void RemoteSession::onReadyread()
         }
 
         else if(packet->type==MessageType::HeartbeatAck){
-            qDebug() << "[client] heartbeat ack received, before restart age ="<< m_lastPongTime.elapsed();
+            qDebug() << "[client] heartbeat ack received";
             
             m_lastPongTime.restart();
         }
