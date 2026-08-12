@@ -6,21 +6,26 @@ namespace RemoteLink {
 
 enum class MessageType : quint16
 {
-    Discovery = 1,
-    DiscoveryReply = 2,
-    FrameData = 10,
-    MouseMove = 20,
-    MouseClick = 21,
-    MouseWheel = 22,
-    MousePress = 23,
-    MouseRelease = 24,
-    FileBegin = 30,
-    FileData = 31,
-    FileEnd = 32,
-    Heartbeat = 40,
-    HeartbeatAck = 41,
-    KeyEvent = 50,
-    ServerKick=60
+    Discovery = 101,
+    DiscoveryReply = 102,
+
+    FrameData = 301,
+    
+    MouseMove = 401,
+    MouseClick = 402,
+    MouseWheel = 403,
+    MousePress = 404,
+    MouseRelease = 405,
+    KeyEvent = 406,
+    
+    FileBegin = 501,
+    FileData = 502,
+    FileEnd = 503,
+    
+    Heartbeat = 201,
+    HeartbeatAck = 202,
+    
+    ServerKick = 601
 };
 
 } // namespace RemoteLink

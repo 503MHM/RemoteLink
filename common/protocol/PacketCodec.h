@@ -18,6 +18,8 @@ public:
 
 private:
     QByteArray m_buffer;
+
+    bool isValidMessageType(quint16 type);
 };
 
 } // namespace RemoteLink

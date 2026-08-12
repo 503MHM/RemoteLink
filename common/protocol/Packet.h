@@ -13,6 +13,7 @@ struct PacketHeader
 {
     quint32 magic = PacketMagic;
     quint16 type = 0;
+    quint32 sessionId = 0;
     quint32 length = 0;
     quint32 sequence = 0;
 };
@@ -20,6 +21,7 @@ struct PacketHeader
 struct Packet
 {
     MessageType type = MessageType::Heartbeat;
+    quint32 sessionId = 0;
     quint32 sequence = 0;
     QByteArray payload;
 };
