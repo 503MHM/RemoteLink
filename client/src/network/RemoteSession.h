@@ -66,6 +66,7 @@ private:
 private:
     QTcpSocket m_socket;
     quint32 m_sequence = 1;
+    quint32 m_sessionId = 0;
 
     RemoteLink::PacketCodec m_codec;
 

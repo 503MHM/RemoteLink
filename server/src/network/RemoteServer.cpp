@@ -4,14 +4,16 @@
 #include "./control/MouseController.h"
 #include "control/KeyboardController.h"
 #include "file/FileReceiver.h"
+#include "protocol/VideoFramePayload.h"
 
 #include <QDebug>
+#include <QRandomGenerator>
+#include <QDateTime>
 
 using namespace RemoteLink;
 
 RemoteServer::RemoteServer(QObject *parent)
     : QObject(parent)
-    ,m_frameSequence(0)
     ,m_currClientSocket(nullptr)
     {
     connect(&m_server, &QTcpServer::newConnection, this, &RemoteServer::onNewConnection);
@@ -29,24 +31,44 @@ RemoteServer::RemoteServer(QObject *parent)
     //收到子线程的信号后发送截图
     connect(m_captureWorker,&CaptureWorker::frameReady,this,[=](const QByteArray &frameData){
         
-        //打包
-        Packet packet;
-        packet.type=MessageType::FrameData;
-        packet.sequence=m_frameSequence++;
-        packet.payload=frameData;
-        
-        QByteArray sendData=PacketCodec::encode(packet);
-
         if(!m_currClientSocket || m_currClientSocket->state()!=QAbstractSocket::SocketState::ConnectedState){
             qDebug()<<"[RemoteServer] send frame data filed!,disconnected";
             return;
         }
-
+        
         if (m_currClientSocket->bytesToWrite() > 2 * 1024 * 1024) {
             return;
         }
+        
+        //构造视频帧头
+        VideoFrameHeader vfh;
+        vfh.frameId=m_nextVideoFrameId++;
+        vfh.codec=static_cast<quint16>(VideoCodec::Jpeg);
+        vfh.timestampMs=static_cast<quint64>(QDateTime::currentMSecsSinceEpoch());
+        vfh.dataSize=static_cast<quint32>(frameData.size());
 
-        m_currClientSocket->write(sendData);
+        //构造视频帧
+        QByteArray videoPayload=encodeVideoFramePayload(vfh,frameData);
+        if(videoPayload.isEmpty())
+        return;
+
+        //打包
+        Packet packet;
+        packet.type=MessageType::FrameData;
+        packet.sessionId=m_sessionId;
+        packet.sequence=m_nextServerSequence;
+        packet.payload=videoPayload;
+        
+        QByteArray sendData=PacketCodec::encode(packet);
+        if(sendData.isEmpty())
+        {
+            return;
+        }
+
+        if(m_currClientSocket->write(sendData)!=-1)
+        {
+            m_nextServerSequence++;
+        }
     });
 
 
@@ -112,6 +134,13 @@ void RemoteServer::onNewConnection()
             client->localPort()
         );
 
+        m_sessionId=QRandomGenerator::global()->generate();
+        if(m_sessionId==0)
+        {
+            m_sessionId=1;
+        }
+        m_nextServerSequence=1;
+        m_codec.clear();
 
         connect(client, &QTcpSocket::readyRead, this, &RemoteServer::onReadyRead);
         connect(client, &QTcpSocket::disconnected, this, &RemoteServer::onClientDisconnected);
@@ -128,6 +157,18 @@ void RemoteServer::onReadyRead()
     m_codec.appendData(client->readAll());
     //解包
     while (auto packet = m_codec.takePacket()) {
+
+        const bool isHandshakePacket = packet->type==MessageType::Heartbeat && packet->sessionId==0;
+        if(!isHandshakePacket && packet->sessionId!=m_sessionId)
+        {
+            qWarning()<<"[Server] invalid session:"
+                      <<packet->sessionId
+                      <<"expect:"<<m_sessionId;
+        
+            cleanupClient(true);
+            return;
+        }
+        
         qDebug() << "[server] packet received, type ="
                  << static_cast<quint16>(packet->type)
                  << "sequence =" << packet->sequence
@@ -142,7 +183,7 @@ void RemoteServer::onReadyRead()
             
             //发送一个心跳包回应
             if(m_currClientSocket && m_currClientSocket->state()==QAbstractSocket::ConnectedState){
-                sendPacket(MessageType::HeartbeatAck,QByteArray(),packet->sequence);
+                sendPacket(MessageType::HeartbeatAck,QByteArray(),m_nextServerSequence++);
                 qDebug() << "[server] heartbeat ack sent";
             }
 
@@ -220,14 +261,21 @@ bool RemoteServer::sendPacket(RemoteLink::MessageType type, const QByteArray &pa
     Packet packet;
     packet.type=type;
     packet.payload=payload;
+    packet.sessionId=m_sessionId;
     packet.sequence=sequence;
-
-    return m_currClientSocket->write(PacketCodec::encode(packet)) !=-1;
+    
+    QByteArray data=PacketCodec::encode(packet);
+    if(data.isEmpty())
+    {
+        return false;
+    }
+    
+    return m_currClientSocket->write(data) != -1;
 }
 
 void RemoteServer::sendServerKick()
 {
-    if (sendPacket(MessageType::ServerKick, QByteArray(), m_serverKickSequence++)) {
+    if (sendPacket(MessageType::ServerKick, QByteArray(), m_nextServerSequence++)) {
         m_currClientSocket->flush();
     }
 }

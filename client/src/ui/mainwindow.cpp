@@ -6,6 +6,7 @@
 #include "protocol/NetworkConstants.h"
 #include "file/FileTransferClient.h"
 #include "decode/FrameDecodeWorker.h"
+#include "protocol/VideoFramePayload.h"
 
 #include <QTimer>
 #include <QPixmap>
@@ -57,7 +58,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     //开启udp扫描设备
     m_discoveryClient=new DiscoveryClient(this);
-    if(m_discoveryClient->start(DiscoveryPort)){
+    if(m_discoveryClient->start(RemoteLink::DiscoveryPort)){
         m_discoveryClient->search();
     }
 
@@ -207,6 +208,15 @@ void MainWindow::onFrameReceived(const QImage &image){
 
 void MainWindow::onFrameDataReceived(const QByteArray &frameData)
 {
+    //解析视频帧
+    RemoteLink::VideoFrameHeader vfh;
+    QByteArray videoData;
+    if(!RemoteLink::decodeVideoFramePayload(frameData,&vfh,&videoData))
+    {
+        return;
+    }
+
+
     m_receivedFrameCnt++;
     if(m_receivedTimer.elapsed()>=1000){
         qDebug()<<"[client] received fps ="<<m_receivedFrameCnt;
@@ -217,12 +227,12 @@ void MainWindow::onFrameDataReceived(const QByteArray &frameData)
 
     //丢弃旧帧，只保留最新帧
     if(m_decodeBusy){
-        m_pendingFrameData=frameData;
+        m_pendingFrameData=videoData;
         return;
     }
 
     m_decodeBusy=true;
-    QMetaObject::invokeMethod(m_frameDecodeWorker,"decodeFrame",Qt::ConnectionType::QueuedConnection,frameData);
+    QMetaObject::invokeMethod(m_frameDecodeWorker,"decodeFrame",Qt::ConnectionType::QueuedConnection,videoData);
 
 }
 

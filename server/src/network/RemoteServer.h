@@ -30,7 +30,7 @@ private slots:
     void onClientDisconnected();
 
 private:
-    bool sendPacket(RemoteLink::MessageType type,const QByteArray &payload = QByteArray(),quint32 sequence=0);
+    bool sendPacket(RemoteLink::MessageType type,const QByteArray &payload,quint32 sequence);
     void sendServerKick();
     void cleanupClient(bool notifyClient);
 
@@ -53,7 +53,12 @@ private:
     QTcpServer m_server;
     QTcpSocket *m_currClientSocket;
     RemoteLink::PacketCodec m_codec;
-    quint32 m_frameSequence;
+    //quint32 m_frameSequence;
+
+    quint32 m_sessionId=0;
+    quint32 m_nextServerSequence=1;
+
+    quint32 m_nextVideoFrameId=1;
 
     FileReceiver m_fileReceiver;
 
@@ -63,8 +68,5 @@ private:
 
     //用于提示当前是否已启动截图
     bool m_captureStarted=false;
-
-    //序列号
-    quint32 m_serverKickSequence=0;
 
 };

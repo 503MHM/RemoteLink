@@ -83,14 +83,8 @@ void RemoteSession::connectToServer(const QString &address, quint16 port)
 
 void RemoteSession::sendHeartbeat()
 {
-    Packet packet;
-    packet.type = MessageType::Heartbeat;
-    packet.sequence = m_sequence++;
-    packet.payload = QByteArrayLiteral("hello from client");
-
-    const QByteArray data = PacketCodec::encode(packet);
-    m_socket.write(data);
-    qDebug() << "[client] heartbeat sent, bytes =" << data.size();
+    QByteArray payload("Heartbeat packet");
+    sendPacket(RemoteLink::MessageType::Heartbeat,payload);
 }
 
 
@@ -135,23 +129,35 @@ void RemoteSession::sendMouseRelease(double xRatio, double yRatio, const QString
 
 bool RemoteSession::sendPacket(RemoteLink::MessageType type, const QByteArray &payload)
 {
+    if(m_socket.state()!=QAbstractSocket::ConnectedState)
+    {
+        return false;
+    }
+
     //构建packet
     Packet packet;
     packet.type=type;
-    packet.sequence=m_sequence++;
+    packet.sessionId=m_sessionId;
+    packet.sequence=m_sequence;
     packet.payload=payload;
 
     //打包包头和载荷
     QByteArray sendData=PacketCodec::encode(packet);
 
-    if(m_socket.state()!=QAbstractSocket::ConnectedState){
+    if(sendData.isEmpty())
+    {
         return false;
     }
 
     //发送
-    ;
+    if(m_socket.write(sendData)==-1)
+    {
+        return false;
+    }
 
-    return m_socket.write(sendData)!=-1;
+    //发送成功递增序列号
+    ++m_sequence;
+    return true;
 }
 
 void RemoteSession::sendMouseWheel(double xRatio, double yRatio, const int deltaY)
@@ -209,6 +215,9 @@ void RemoteSession::onConnected()
 {
     qDebug() << "[client] connected";
 
+    m_sessionId = 0;
+    m_sequence = 1;
+
     m_reconnectCount=0;
     m_reconnectTimer.stop();
     m_manualDisconnect=false;
@@ -247,7 +256,11 @@ void RemoteSession::onReadyread()
     m_codec.appendData(Recedata);
     while (auto packet=m_codec.takePacket())
     {
-        
+        //校验sessionId
+        if(m_sessionId!=0 && packet->sessionId!=m_sessionId){
+            continue;
+        }
+
         
         if(packet->type==MessageType::FrameData){
 
@@ -258,6 +271,11 @@ void RemoteSession::onReadyread()
         else if(packet->type==MessageType::HeartbeatAck){
             qDebug() << "[client] heartbeat ack received";
             
+            if(m_sessionId==0 && packet->sessionId!=0)
+            {
+                m_sessionId=packet->sessionId;
+            }
+
             m_lastPongTime.restart();
         }
 
