@@ -5,7 +5,7 @@
 #include <QJsonObject>
 #include <QUuid>
 #include <QThread>
-
+#include "protocol/FileTransferPayload.h"
 
 FileTransferWorker::FileTransferWorker(QObject *partent)
     :QObject(partent)
@@ -39,17 +39,24 @@ void FileTransferWorker::readNextChunk()
         emit finished();
         return;
     }
-
     constexpr qint64 chunkSize=256*1024;
     QByteArray chunk=m_file.read(chunkSize);
+
+    RemoteLink::FileDataHeader payloadHeader;
+    payloadHeader.offset=static_cast<quint64>(m_sentBytes);
+    payloadHeader.chunkIndex=m_chunkIndex++;
+    payloadHeader.dataSize=static_cast<quint32>(chunk.size());
+
     if(chunk.isEmpty()){
         emit errorOccurred("[FileTransferWorker] " + m_file.errorString());
         return;
     }
 
-    m_sentBytes+=chunk.size();
+    m_sentBytes+=chunk.size();    
 
-    emit fileDataReady(chunk);
+    QByteArray payload=RemoteLink::encodeFileDataPayload(payloadHeader,chunk);
+
+    emit fileDataReady(payload);
     emit progressChanged(m_sentBytes,m_fileInfo.size());
 
 }
@@ -71,6 +78,7 @@ void FileTransferWorker::startSend(const QString filePath)
     m_fileInfo=QFileInfo(filePath);
     m_fileId=QUuid::createUuid().toString(QUuid::WithoutBraces);
     m_sentBytes=0;
+    m_chunkIndex=0;
 
     //构建json文本
     QJsonObject beginObj;

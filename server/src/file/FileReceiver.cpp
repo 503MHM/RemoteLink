@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QDir>
 #include <QApplication>
+#include "protocol/FileTransferPayload.h"
 
 FileReceiver::FileReceiver(QObject *partent)
     :QObject(partent)
@@ -47,6 +48,7 @@ bool FileReceiver::handleFileBegin(const QByteArray &payload)
     m_fileId=fileId;
     m_totalBytes=fileSize;
     m_receivedBytes=0;
+    m_expectedChunkIndex=0;
 
     //发送给UI文件信息
     emit receiveStarted(fileName,m_totalBytes);
@@ -62,14 +64,31 @@ bool FileReceiver::handleFileData(const QByteArray &payload)
         qWarning() << "[file] data received but file is not open";
         return false;
     }
+    RemoteLink::FileDataHeader fileDataHeader;
+    QByteArray chunk;
+
+    if(!RemoteLink::decodeFileDataPayload(payload,&fileDataHeader,&chunk))
+    {
+        return false;
+    }
+
+    if(m_receivedBytes!=fileDataHeader.offset)
+    {
+        return false;
+    }
+    if(fileDataHeader.chunkIndex!=m_expectedChunkIndex)
+    {
+        return false;
+    }
 
     //写入内容
-    if(m_file.write(payload) != payload.size()){
+    if(m_file.write(chunk) != fileDataHeader.dataSize){
         qWarning() << "[file] write failed:" << m_file.errorString();
         return false;
     }
 
-    m_receivedBytes+=payload.size();
+    m_receivedBytes+=fileDataHeader.dataSize;
+    ++m_expectedChunkIndex;
 
     //发送给UI文件信息
     emit receiveProgress(m_receivedBytes,m_totalBytes);

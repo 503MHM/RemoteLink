@@ -42,5 +42,5 @@ private:
     quint64 m_totalBytes=0;
     quint64 m_receivedBytes=0;
     QString m_fileId;
-
+    quint64 m_expectedChunkIndex=0;
 };

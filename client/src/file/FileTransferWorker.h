@@ -12,6 +12,7 @@ private:
     QFileInfo m_fileInfo;
     QString m_fileId;
     qint64 m_sentBytes=0;
+    quint32 m_chunkIndex=0;
     
 public:
     FileTransferWorker(QObject *partent=nullptr);
