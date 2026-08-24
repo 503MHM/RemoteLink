@@ -3,6 +3,7 @@
 #include "protocol/PacketCodec.h"
 #include "file/FileReceiver.h"
 #include "capture/CaptureWorker.h"
+#include "video/VideoSender.h"
 
 #include <QObject>
 #include <QTcpServer>
@@ -33,7 +34,7 @@ private:
     bool sendPacket(RemoteLink::MessageType type,const QByteArray &payload,quint32 sequence);
     void sendServerKick();
     void cleanupClient(bool notifyClient);
-
+    bool sendVideoFrame(const QByteArray &frameData);
 
 signals:
     void startCaptureRequested(quint16 intervalMS);
@@ -58,7 +59,7 @@ private:
     quint32 m_sessionId=0;
     quint32 m_nextServerSequence=1;
 
-    quint32 m_nextVideoFrameId=1;
+    //quint32 m_nextVideoFrameId=1;
 
     FileReceiver m_fileReceiver;
 
@@ -68,5 +69,7 @@ private:
 
     //用于提示当前是否已启动截图
     bool m_captureStarted=false;
+
+    VideoSender m_videoSender;
 
 };

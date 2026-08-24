@@ -8,7 +8,7 @@ namespace RemoteLink
 
 constexpr qsizetype VideoFrameHeaderSize=sizeof(quint32)+sizeof(quint16)+sizeof(quint16)+sizeof(quint64)+sizeof(quint32);
 
-QByteArray RemoteLink::encodeVideoFramePayload(const VideoFrameHeader &header, const QByteArray &frameData)
+QByteArray encodeVideoFramePayload(const VideoFrameHeader &header, const QByteArray &frameData)
 {
     QByteArray payload;
     payload.reserve(VideoFrameHeaderSize+frameData.size());
@@ -26,7 +26,7 @@ QByteArray RemoteLink::encodeVideoFramePayload(const VideoFrameHeader &header, c
     return payload;
 }
 
-bool RemoteLink::decodeVideoFramePayload(const QByteArray &payload, VideoFrameHeader *header, QByteArray *frameData)
+bool decodeVideoFramePayload(const QByteArray &payload, VideoFrameHeader *header, QByteArray *frameData)
 {
     if(!header || !frameData)
         return false;    

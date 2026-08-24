@@ -6,7 +6,7 @@ namespace RemoteLink
 {
     constexpr qsizetype FileDataHeaderSize=sizeof(quint64)+sizeof(quint32)+sizeof(quint32);
 
-QByteArray RemoteLink::encodeFileDataPayload(const FileDataHeader &header, const QByteArray &chunkData)
+QByteArray encodeFileDataPayload(const FileDataHeader &header, const QByteArray &chunkData)
 {
     QByteArray payload;
     payload.reserve(FileDataHeaderSize+chunkData.size());
@@ -22,7 +22,7 @@ QByteArray RemoteLink::encodeFileDataPayload(const FileDataHeader &header, const
     return payload;
 }
 
-bool RemoteLink::decodeFileDataPayload(const QByteArray &payload, FileDataHeader *header, QByteArray *chunkData)
+bool decodeFileDataPayload(const QByteArray &payload, FileDataHeader *header, QByteArray *chunkData)
 {
     if(payload.size()<FileDataHeaderSize)
     {

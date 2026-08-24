@@ -6,7 +6,7 @@
 #include "protocol/NetworkConstants.h"
 #include "file/FileTransferClient.h"
 #include "decode/FrameDecodeWorker.h"
-#include "protocol/VideoFramePayload.h"
+#include "video/VideoReceiver.h"
 
 #include <QTimer>
 #include <QPixmap>
@@ -23,6 +23,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , m_session(new RemoteSession(this))
     , m_fileTransferClient(new FileTransferClient(this))
+    , m_videoReceiver(new VideoReceiver(this))
 {
     ui->setupUi(this);
     this->setWindowTitle("Client");
@@ -49,7 +50,11 @@ MainWindow::MainWindow(QWidget *parent)
     m_frameDecodeWorker=new FrameDecodeWorker;
     m_frameDecodeWorker->moveToThread(m_frameDecodeThread);
 
-    connect(m_session,&RemoteSession::frameDataReceived,this,&MainWindow::onFrameDataReceived);
+
+
+    //connect(m_session,&RemoteSession::frameDataReceived,this,&MainWindow::onFrameDataReceived);
+    connect(m_session,&RemoteSession::frameDataReceived,m_videoReceiver,&VideoReceiver::onFrameDataReceived);
+    connect(m_videoReceiver,&VideoReceiver::jpegDataReceived,this,&MainWindow::onFrameDataReceived);
     connect(m_frameDecodeWorker,&FrameDecodeWorker::frameDecoded,this,&MainWindow::onFrameDecoded);
     connect(m_frameDecodeThread,&QThread::finished,m_frameDecodeWorker, &QObject::deleteLater);
     connect(m_frameDecodeWorker,&FrameDecodeWorker::decodeFailed,this,&MainWindow::onFrameDecodeFailed);
@@ -208,15 +213,6 @@ void MainWindow::onFrameReceived(const QImage &image){
 
 void MainWindow::onFrameDataReceived(const QByteArray &frameData)
 {
-    //解析视频帧
-    RemoteLink::VideoFrameHeader vfh;
-    QByteArray videoData;
-    if(!RemoteLink::decodeVideoFramePayload(frameData,&vfh,&videoData))
-    {
-        return;
-    }
-
-
     m_receivedFrameCnt++;
     if(m_receivedTimer.elapsed()>=1000){
         qDebug()<<"[client] received fps ="<<m_receivedFrameCnt;
@@ -227,12 +223,12 @@ void MainWindow::onFrameDataReceived(const QByteArray &frameData)
 
     //丢弃旧帧，只保留最新帧
     if(m_decodeBusy){
-        m_pendingFrameData=videoData;
+        m_pendingFrameData=frameData;
         return;
     }
 
     m_decodeBusy=true;
-    QMetaObject::invokeMethod(m_frameDecodeWorker,"decodeFrame",Qt::ConnectionType::QueuedConnection,videoData);
+    QMetaObject::invokeMethod(m_frameDecodeWorker,"decodeFrame",Qt::ConnectionType::QueuedConnection,frameData);
 
 }
 

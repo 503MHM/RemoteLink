@@ -30,45 +30,7 @@ RemoteServer::RemoteServer(QObject *parent)
 
     //收到子线程的信号后发送截图
     connect(m_captureWorker,&CaptureWorker::frameReady,this,[=](const QByteArray &frameData){
-        
-        if(!m_currClientSocket || m_currClientSocket->state()!=QAbstractSocket::SocketState::ConnectedState){
-            qDebug()<<"[RemoteServer] send frame data filed!,disconnected";
-            return;
-        }
-        
-        if (m_currClientSocket->bytesToWrite() > 2 * 1024 * 1024) {
-            return;
-        }
-        
-        //构造视频帧头
-        VideoFrameHeader vfh;
-        vfh.frameId=m_nextVideoFrameId++;
-        vfh.codec=static_cast<quint16>(VideoCodec::Jpeg);
-        vfh.timestampMs=static_cast<quint64>(QDateTime::currentMSecsSinceEpoch());
-        vfh.dataSize=static_cast<quint32>(frameData.size());
-
-        //构造视频帧
-        QByteArray videoPayload=encodeVideoFramePayload(vfh,frameData);
-        if(videoPayload.isEmpty())
-        return;
-
-        //打包
-        Packet packet;
-        packet.type=MessageType::FrameData;
-        packet.sessionId=m_sessionId;
-        packet.sequence=m_nextServerSequence;
-        packet.payload=videoPayload;
-        
-        QByteArray sendData=PacketCodec::encode(packet);
-        if(sendData.isEmpty())
-        {
-            return;
-        }
-
-        if(m_currClientSocket->write(sendData)!=-1)
-        {
-            m_nextServerSequence++;
-        }
+        sendVideoFrame(frameData);
     });
 
 
@@ -140,6 +102,7 @@ void RemoteServer::onNewConnection()
             m_sessionId=1;
         }
         m_nextServerSequence=1;
+        m_videoSender.reset();
         m_codec.clear();
 
         connect(client, &QTcpSocket::readyRead, this, &RemoteServer::onReadyRead);
@@ -300,6 +263,42 @@ void RemoteServer::cleanupClient(bool notifyClient)
     m_currClientSocket = nullptr;
 
     emit clientDisconnected();
+}
+
+bool RemoteServer::sendVideoFrame(const QByteArray &frameData)
+{
+    if(!m_currClientSocket || m_currClientSocket->state()!=QAbstractSocket::SocketState::ConnectedState){
+        qDebug()<<"[RemoteServer] send frame data filed!,disconnected";
+        return false;
+    }
+    
+    if (m_currClientSocket->bytesToWrite() > 2 * 1024 * 1024) {
+        return false;
+    }
+
+    //构造视频帧头
+    const QByteArray videoPayload=m_videoSender.bulidJpegFramePayload(frameData);
+    if(videoPayload.isEmpty())
+        return false;
+    //打包
+    Packet packet;
+    packet.type=MessageType::FrameData;
+    packet.sessionId=m_sessionId;
+    packet.sequence=m_nextServerSequence;
+    packet.payload=videoPayload;
+    
+    QByteArray sendData=PacketCodec::encode(packet);
+    if(sendData.isEmpty())
+    {
+        return false;
+    }
+    if(m_currClientSocket->write(sendData)==-1)
+    {
+        return false;
+    }
+
+    m_nextServerSequence++;
+    return true;
 }
 
 void RemoteServer::disconnectClient()

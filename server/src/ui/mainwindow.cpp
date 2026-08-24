@@ -192,7 +192,7 @@ void MainWindow::on_startORStop_pushButton_clicked()
             m_discoveryResponder=new DiscoveryResponder(this);
         }
 
-        if(!m_discoveryResponder->start(DiscoveryPort,m_tcpPort)){
+        if(!m_discoveryResponder->start(RemoteLink::DiscoveryPort,m_tcpPort)){
             ui->statusbar->addWidget(new QLabel("服务启动失败"));
             return;
         }

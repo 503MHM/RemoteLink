@@ -15,12 +15,18 @@ qt_add_executable(client
     src/ui/mainwindow.ui
     src/ui/RemoteViewWidget.cpp
     src/ui/RemoteViewWidget.h
+    
     src/file/FileTransferClient.cpp
     src/file/FileTransferClient.h
     src/file/FileTransferWorker.h
     src/file/FileTransferWorker.cpp
+    
     src/decode/FrameDecodeWorker.h
     src/decode/FrameDecodeWorker.cpp
+
+    src/video/VideoReceiver.h
+    src/video/VideoReceiver.cpp
+
     ${RESOURCES_FILE}
 
 )

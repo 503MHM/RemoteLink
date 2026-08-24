@@ -54,9 +54,9 @@ TCP 是字节流协议，可能出现粘包、半包和数据错位。RemoteLink
 
 ```text
 +------------+---------+----------+------------+---------+
-| magic      | type    | length   | sequence   | payload |
-+------------+---------+----------+------------+---------+
-| quint32    | quint16 | quint32  | quint32    | bytes   |
+| magic      | type    | sessionId | length     | sequence | payload |
++------------+---------+----------+------------+----------+---------+
+| quint32    | quint16 | quint32  | quint32    | quint32  | bytes   |
 +------------+---------+----------+------------+---------+
 ```
 
@@ -66,11 +66,12 @@ TCP 是字节流协议，可能出现粘包、半包和数据错位。RemoteLink
 | --- | --- | ---: | --- |
 | magic | quint32 | 4 | 固定魔数，值为 `0x524C4B31`，ASCII 含义是 `RLK1` |
 | type | quint16 | 2 | 消息类型，对应 `MessageType` |
+| sessionId | quint32 | 4 | 会话标识，server 新连接后生成，client 连接后通过心跳响应获取 |
 | length | quint32 | 4 | payload 字节数 |
 | sequence | quint32 | 4 | 包序号 |
 | payload | bytes | length | 具体业务数据 |
 
-包头总长度为 14 字节。
+包头总长度为 18 字节。
 
 当前编码使用 `QDataStream::BigEndian`，因此包头字段按大端字节序写入。
 
@@ -78,27 +79,27 @@ TCP 是字节流协议，可能出现粘包、半包和数据错位。RemoteLink
 
 | 类型名 | 数值 | 方向 | 说明 |
 | --- | ---: | --- | --- |
-| Discovery | 1 | 未用于 TCP | 发现类型枚举保留 |
-| DiscoveryReply | 2 | 未用于 TCP | 发现响应枚举保留 |
-| FrameData | 10 | server -> client | 远程屏幕 JPEG 帧 |
-| MouseMove | 20 | client -> server | 鼠标移动 |
-| MouseClick | 21 | 保留 | 当前未使用 |
-| MouseWheel | 22 | client -> server | 鼠标滚轮 |
-| MousePress | 23 | client -> server | 鼠标按下 |
-| MouseRelease | 24 | client -> server | 鼠标释放 |
-| FileBegin | 30 | client -> server | 文件传输开始 |
-| FileData | 31 | client -> server | 文件数据块 |
-| FileEnd | 32 | client -> server | 文件传输结束 |
-| Heartbeat | 40 | client -> server | 客户端心跳请求 |
-| HeartbeatAck | 41 | server -> client | 服务端心跳响应 |
-| KeyEvent | 50 | client -> server | 键盘事件 |
-| ServerKick | 60 | server -> client | 服务端主动断开通知，client 收到后不自动重连 |
+| Discovery | 101 | 未用于 TCP | 发现类型枚举保留 |
+| DiscoveryReply | 102 | 未用于 TCP | 发现响应枚举保留 |
+| FrameData | 301 | server -> client | 远程屏幕视频帧，payload 内含视频帧头和 JPEG 数据 |
+| MouseMove | 401 | client -> server | 鼠标移动 |
+| MouseClick | 402 | 保留 | 当前未使用 |
+| MouseWheel | 403 | client -> server | 鼠标滚轮 |
+| MousePress | 404 | client -> server | 鼠标按下 |
+| MouseRelease | 405 | client -> server | 鼠标释放 |
+| FileBegin | 501 | client -> server | 文件传输开始 |
+| FileData | 502 | client -> server | 文件分片数据，payload 内含分片头和 chunk |
+| FileEnd | 503 | client -> server | 文件传输结束 |
+| Heartbeat | 201 | client -> server | 客户端心跳请求 |
+| HeartbeatAck | 202 | server -> client | 服务端心跳响应 |
+| KeyEvent | 406 | client -> server | 键盘事件 |
+| ServerKick | 601 | server -> client | 服务端主动断开通知，client 收到后不自动重连 |
 
 ## 5. 连接保活与重连
 
 ### 5.1 心跳流程
 
-client 连接成功后会立即发送一次 `Heartbeat`，之后每 5 秒发送一次。
+client 连接成功后会立即发送一次 `Heartbeat`，之后每 5 秒发送一次。首个心跳的 `sessionId` 可能为 0，server 会在响应里返回当前会话的 `sessionId`，client 收到后保存。
 
 server 收到 `Heartbeat` 后：
 
@@ -176,7 +177,7 @@ payload 当前为空：
 empty
 ```
 
-client 收到后刷新最后心跳响应时间。
+payload 中带有 server 当前会话的 `sessionId`。client 收到后刷新最后心跳响应时间，并保存 `sessionId`。
 
 ### 6.3 ServerKick
 
@@ -202,13 +203,23 @@ empty
 server -> client
 ```
 
-payload 是一帧 JPEG 图片的原始字节：
+payload 结构如下：
 
 ```text
-JPEG binary bytes
+VideoFrameHeader + JPEG binary bytes
 ```
 
-client 收到后，将 payload 投递给解码线程。解码成功后显示到远程画面控件。
+`VideoFrameHeader` 当前字段如下：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| frameId | quint32 | 视频帧序号 |
+| codec | quint16 | 编码类型，当前为 `Jpeg` |
+| flags | quint16 | 预留标志位 |
+| timestampMs | quint64 | 采集时间戳 |
+| dataSize | quint32 | 后面 JPEG 数据长度 |
+
+client 收到后先解析视频帧头，再把 JPEG 数据投递给解码线程。解码成功后显示到远程画面控件。
 
 ### 6.5 MouseMove
 
@@ -346,13 +357,21 @@ server 收到后会在程序目录下创建 `downloads` 目录，并打开目标
 client -> server
 ```
 
-payload 是文件原始字节块：
+payload 结构如下：
 
 ```text
-file chunk binary bytes
+FileDataHeader + file chunk binary bytes
 ```
 
 当前 client 每次读取的文件块大小为 256 KB。
+
+`FileDataHeader` 当前字段如下：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| offset | quint64 | 当前分片在文件中的起始偏移 |
+| chunkIndex | quint32 | 分片序号，从 0 开始 |
+| dataSize | quint32 | 后面紧跟的 chunk 长度 |
 
 ### 6.11 FileEnd
 
@@ -377,12 +396,13 @@ server 收到后校验 `fileId`，关闭文件，并比较已接收大小和 `fi
 `PacketCodec` 内部维护一个缓冲区：
 
 1. socket 收到数据后调用 `appendData()` 追加到缓冲区。
-2. `takePacket()` 检查缓冲区是否至少有 14 字节包头。
-3. 读取 magic、type、length、sequence。
+2. `takePacket()` 检查缓冲区是否至少有 18 字节包头。
+3. 读取 magic、type、sessionId、length、sequence。
 4. 如果 magic 不匹配，丢弃 1 字节并继续寻找下一个可能包头。
-5. 如果缓冲区未收到完整 payload，返回空。
-6. 如果数据完整，取出 payload，返回一个 `Packet`。
-7. 从缓冲区移除已经消费的完整包。
+5. 如果 payload 长度超过上限，丢弃 1 字节并继续。
+6. 如果缓冲区未收到完整 payload，返回空。
+7. 如果数据完整，取出 payload，返回一个 `Packet`。
+8. 从缓冲区移除已经消费的完整包。
 
 业务层通常用循环读取：
 
@@ -417,9 +437,9 @@ client 文件发送使用高低水位控制：
 
 ## 9. 当前协议限制
 
-- TCP 包头中有 payload 长度，但当前未设置最大包大小限制。
+- TCP 包头中有 payload 长度限制，当前上限为 4 MB。
 - TCP 通信当前未加密，也没有身份认证。
 - UDP 发现只适合可信局域网环境。
 - 文件传输当前没有断点续传。
 - 屏幕帧当前是整屏 JPEG，不是区域增量传输。
-- 当前控制、心跳、屏幕帧和文件传输共用一条 TCP 连接，大流量场景下可考虑拆分控制连接和数据连接。
+- 当前控制、心跳、屏幕帧和文件传输共用一条 TCP 连接，后续可以进一步拆分控制连接和画面连接。

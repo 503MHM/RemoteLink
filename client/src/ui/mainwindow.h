@@ -9,6 +9,7 @@ class RemoteSession;
 class DiscoveryClient;
 class FileTransferClient;
 class FrameDecodeWorker;
+class VideoReceiver;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -49,6 +50,8 @@ private:
     QElapsedTimer m_receivedTimer;
     int m_receivedFrameCnt=0;
 
+    //video payload解析
+    VideoReceiver *m_videoReceiver=nullptr;
 
 private slots:
     //添加发现的远程设备

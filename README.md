@@ -8,11 +8,11 @@ server 运行在被控制端，负责屏幕采集、远程输入执行、文件�
 
 - 局域网自动发现 server 设备
 - TCP 连接远程主机
-- server 端屏幕采集并以 JPEG 帧发送
+- server 端屏幕采集并以 JPEG 帧发送，FrameData payload 已拆成视频帧头 + JPEG 数据
 - client 端远程画面显示
 - 鼠标移动、点击、滚轮控制
 - 键盘事件转发
-- client 向 server 发送文件
+- client 向 server 发送文件，FileData payload 已拆成分片头 + chunk
 - 基于 socket 写缓冲的简单背压控制
 - client 解码线程只保留最新帧，降低画面延迟堆积
 
@@ -20,7 +20,7 @@ server 运行在被控制端，负责屏幕采集、远程输入执行、文件�
 
 - 基于 Qt 6 Widgets 构建 client/server 双端界面
 - 使用 Qt Network 实现 TCP 长连接与 UDP 局域网发现
-- 自定义二进制 TCP 包格式，处理粘包、半包和消息分发
+- 自定义二进制 TCP 包格式，包含 `sessionId` 和最大 payload 长度保护
 - server 端采用独立网络线程和独立截图线程，降低 UI 阻塞
 - client 端采用独立 JPEG 解码线程，并实现只保留最新帧的低延迟策略
 - 基于 DXGI Desktop Duplication 进行 Windows 桌面采集
@@ -73,4 +73,4 @@ RemoteLink
 
 ## 当前状态
 
-这是一个学习和实践性质的远程控制项目，核心链路已经包括设备发现、画面传输、远程输入和文件传输。当前实现主要面向 Windows 局域网环境，尚未加入加密认证、多客户端管理、断点续传和屏幕增量传输等能力。
+这是一个学习和实践性质的远程控制项目，核心链路已经包括设备发现、画面传输、远程输入和文件传输。当前实现主要面向 Windows 局域网环境，协议层已经收口到 `sessionId`、最大 payload 限制，以及视频/文件二级 payload 头。尚未加入加密认证、多客户端管理、断点续传和屏幕增量传输等能力。

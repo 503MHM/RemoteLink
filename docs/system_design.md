@@ -6,7 +6,7 @@ RemoteLink 是一个基于 Qt 的局域网远程控制项目，分为 client 和
 
 - server 运行在被控制端，负责局域网发现响应、TCP 服务监听、屏幕采集、远程鼠标键盘执行、文件接收。
 - client 运行在控制端，负责发现 server、建立 TCP 连接、显示远程画面、发送鼠标键盘事件、发送文件。
-- common 模块提供 TCP 自定义包格式、消息类型和端口常量。
+- common 模块提供 TCP 自定义包格式、消息类型、端口常量，以及画面和文件 payload 的二级头定义。
 
 当前项目主要面向 Windows。server 端屏幕采集使用 DXGI Desktop Duplication，鼠标键盘控制使用 Windows API。
 
@@ -30,7 +30,7 @@ RemoteLink
 │       ├── network             # TCP server、UDP 发现响应、server worker
 │       └── ui                  # server 主窗口
 ├── common
-│   └── protocol                # 自定义协议
+│   └── protocol                # 自定义协议、视频/文件 payload 头
 ├── resources                   # QSS、图标资源
 └── docs                        # 项目文档
 ```
@@ -69,6 +69,8 @@ common 模块定义了 TCP 自定义协议。
 - `Packet`：统一 TCP 数据包结构。
 - `PacketCodec`：负责粘包、拆包、编码、解码。
 - `NetworkConstants`：默认 TCP/UDP 端口。
+- `VideoFramePayload`：`FrameData` 的视频帧 payload 结构。
+- `FileTransferPayload`：`FileData` 的文件分片 payload 结构。
 
 所有 TCP 业务消息都经过 `PacketCodec` 编码和解码。UDP 发现消息不走 `PacketCodec`，而是直接发送 JSON。
 
@@ -102,6 +104,13 @@ server 截图模块包括：
 
 client 连接后发送心跳，server 收到心跳后启动截图定时器。当前截图间隔为 16 ms，理论目标接近 60 FPS，但实际帧率受采集、JPEG 编码、网络和 socket 缓冲影响。
 
+`FrameData` 目前仍走 TCP，但 payload 已经拆成两层：
+
+```text
+Packet(FrameData)
+└── VideoFrameHeader + JPEG bytes
+```
+
 server 发送帧前会检查 socket 写缓冲：
 
 ```text
@@ -124,7 +133,7 @@ client 发送的是相对坐标比例，server 根据自己的屏幕尺寸换算
 `FileReceiver` 运行在 server TCP 线程中，处理三类文件消息：
 
 - `FileBegin`：创建保存文件，初始化文件 ID、文件大小、接收进度。
-- `FileData`：写入文件块。
+- `FileData`：解析 `FileDataHeader` 后写入文件块。
 - `FileEnd`：校验文件 ID 和总大小，关闭文件。
 
 文件默认保存到：
@@ -152,7 +161,7 @@ client 网络模块包括：
 - `DiscoveryClient`：UDP 广播搜索 server。
 - `RemoteSession`：TCP client 会话，负责连接 server、发送控制消息、接收屏幕帧。
 
-`RemoteSession` 当前运行在 UI 线程中。它不会直接解码 JPEG，而是收到 `FrameData` 后将原始 JPEG 数据发给解码线程。
+`RemoteSession` 当前运行在 UI 线程中。它不会直接解码 JPEG，而是收到 `FrameData` 后将视频 payload 交给 UI 层解析，再把原始 JPEG 数据发给解码线程。
 
 ### 4.9 client 解码模块
 
@@ -183,9 +192,10 @@ client 文件发送由两个类组成：
 1. worker 打开文件并发出 `fileBeginReady`。
 2. `FileTransferClient` 通过 `RemoteSession::sendPacket()` 发送 `FileBegin`。
 3. worker 每次读取 256 KB 文件块。
-4. `FileTransferClient` 发送 `FileData`。
-5. worker 读到文件末尾后发出 `fileEndReady`。
-6. `FileTransferClient` 发送 `FileEnd`。
+4. worker 将 `FileDataHeader + chunk` 编成 payload。
+5. `FileTransferClient` 发送 `FileData`。
+6. worker 读到文件末尾后发出 `fileEndReady`。
+7. `FileTransferClient` 发送 `FileEnd`。
 
 当前文件发送有水位控制：
 
@@ -308,13 +318,14 @@ server FileReceiver
 - client 将 JPEG 解码放入独立线程，降低 UI 卡顿概率。
 - client 解码侧只保留最新帧，避免过期画面堆积。
 - 文件发送支持 socket 写缓冲水位控制，避免一次性塞入过多文件数据。
-- TCP 使用统一包头解决粘包和半包问题。
+- TCP 使用统一包头解决粘包和半包问题，`FrameData` 和 `FileData` 再各自携带二级 payload 头。
 
 ## 8. 已知限制和后续优化方向
 
 - server 目前只支持单 client 连接。
-- TCP 协议层暂未限制最大 payload 长度，后续可以加入最大包大小保护。
+- TCP 协议层已加入最大 payload 长度限制，当前上限为 4 MB。
 - server 文件接收当前运行在 TCP 线程，大文件写盘较慢时可能影响控制事件处理。
 - 屏幕传输当前仍是整屏 JPEG，尚未使用 DXGI dirty rects 和 move rects。
 - client 的 TCP socket 当前仍在 UI 线程。当前重活已拆到解码线程和文件线程，后续如果 UI 收包压力变大，可考虑将 `RemoteSession` 移到独立网络线程。
+- 当前控制、心跳、屏幕帧和文件传输共用一条 TCP 连接。后续第二大步会把画面数据通道进一步拆出去。
 - 当前控制和截图实现主要面向 Windows。
