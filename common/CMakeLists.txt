@@ -8,6 +8,8 @@ qt_add_library(remotelink_common STATIC
     protocol/VideoFramePayload.cpp
     protocol/FileTransferPayload.h
     protocol/FileTransferPayload.cpp
+    protocol/UdpVideoPacket.cpp
+    protocol/UdpVideoPacket.h
 )
 
 target_link_libraries(remotelink_common
