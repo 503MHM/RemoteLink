@@ -42,7 +42,7 @@ bool RemoteLink::decodeUdpVideoPacket(const QByteArray &packet, UdpVideoPacketHe
         return false;
     }
 
-    if(packet<UdpVideoPacketHeaderSize)
+    if(packet.size()<UdpVideoPacketHeaderSize)
     {
         return false;
     }
