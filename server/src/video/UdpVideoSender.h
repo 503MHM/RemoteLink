@@ -20,7 +20,7 @@ public:
     void setSessionId(quint32 sessionId);
     quint32 sessionId() const;
 
-    void setFragmentPayloadSize(qsizetype fragmentPayloadSize);
+    bool setFragmentPayloadSize(qsizetype fragmentPayloadSize);
     qsizetype fragmentPayloadSize() const;
 
     bool isReady() const;

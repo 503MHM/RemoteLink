@@ -28,6 +28,8 @@ qt_add_executable(client
     src/video/VideoReceiver.cpp
 
     ${RESOURCES_FILE}
+    src/video/UdpVideoReceiver.h
+    src/video/UdpVideoReceiver.cpp
 
 )
 

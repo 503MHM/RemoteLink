@@ -6,6 +6,10 @@
 namespace RemoteLink
 {
 
+inline constexpr qsizetype MaxUdpVideoFragmentPayloadSize=1200;
+inline constexpr quint16 MaxUdpVideoPacketCount=4096;
+inline constexpr qsizetype MaxUdpVideoFramePayloadSize=4*1024*1024;
+
 constexpr quint32 UdpVideoPacketMagic=0x524c5631;
 
 struct UdpVideoPacketHeader

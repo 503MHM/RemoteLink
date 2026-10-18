@@ -1,6 +1,7 @@
 #include "UdpVideoSender.h"
 #include "protocol/UdpVideoPacket.h"
 
+
 UdpVideoSender::UdpVideoSender(QObject *parent)
     :QObject(parent)
 {
@@ -39,13 +40,15 @@ quint32 UdpVideoSender::sessionId() const
     return m_sessionId;
 }
 
-void UdpVideoSender::setFragmentPayloadSize(qsizetype fragmentPayloadSize)
+bool UdpVideoSender::setFragmentPayloadSize(qsizetype fragmentPayloadSize)
 {
-    if(fragmentPayloadSize<=0)
+    if(fragmentPayloadSize<=0 || 
+        fragmentPayloadSize > RemoteLink::MaxUdpVideoFragmentPayloadSize)
     {
-        return;
+        return  false;
     }
     m_fragmentPayloadSize=fragmentPayloadSize;
+    return true;
 }
 
 qsizetype UdpVideoSender::fragmentPayloadSize() const
@@ -75,8 +78,16 @@ bool UdpVideoSender::sendFrame(quint32 frameId, const QByteArray &videoPayload)
         return false;
     }
 
+    if(videoPayload.size()>RemoteLink::MaxUdpVideoFragmentPayloadSize || 
+        m_fragmentPayloadSize <= 0 ||
+        m_fragmentPayloadSize > RemoteLink::MaxUdpVideoFragmentPayloadSize)
+    {
+        emit errorOccurred("[UdpVideoSender] video payload or fragment size out of range");
+        return false;
+    }
+
     const qsizetype packetCount64=(videoPayload.size()+m_fragmentPayloadSize-1)/m_fragmentPayloadSize;
-    if(packetCount64<=0 || packetCount64>std::numeric_limits<quint16>::max())
+    if(packetCount64<=0 || packetCount64 > RemoteLink::MaxUdpVideoPacketCount)
     {
         emit errorOccurred("[UdpVideoSender] packet count out of range");
 

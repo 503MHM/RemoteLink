@@ -11,9 +11,14 @@ namespace {
 }
 
 
-QByteArray RemoteLink::encodeUdpVideoPacket(const UdpVideoPacketHeader &header, const QByteArray &fragmentData)
+QByteArray encodeUdpVideoPacket(const UdpVideoPacketHeader &header, const QByteArray &fragmentData)
 {
-    if(fragmentData.size()>std::numeric_limits<quint16>::max())
+    if(header.magic!=UdpVideoPacketMagic || 
+        header.packetCount == 0 ||
+        header.packetCount>MaxUdpVideoPacketCount || 
+        header.packetIndex>=header.packetCount || 
+        fragmentData.isEmpty() || 
+        fragmentData.size()>MaxUdpVideoFragmentPayloadSize)
     {
         return {};
     }
@@ -35,7 +40,7 @@ QByteArray RemoteLink::encodeUdpVideoPacket(const UdpVideoPacketHeader &header, 
     return packet;
 }
 
-bool RemoteLink::decodeUdpVideoPacket(const QByteArray &packet, UdpVideoPacketHeader *header, QByteArray *fragmentData)
+bool decodeUdpVideoPacket(const QByteArray &packet, UdpVideoPacketHeader *header, QByteArray *fragmentData)
 {
     if(!header || !fragmentData)
     {
@@ -58,13 +63,14 @@ bool RemoteLink::decodeUdpVideoPacket(const QByteArray &packet, UdpVideoPacketHe
           >>header->payloadSize
           >>header->flags;
 
-    if(header->magic!=UdpVideoPacketMagic)
-    {
-        return false;
-    }
-
-    if(packet.size()!=UdpVideoPacketHeaderSize+header->payloadSize)
-    {
+    if (stream.status() != QDataStream::Ok ||
+        header->magic != UdpVideoPacketMagic ||
+        header->packetCount == 0 ||
+        header->packetCount > MaxUdpVideoPacketCount ||
+        header->packetIndex >= header->packetCount ||
+        header->payloadSize == 0 ||
+        header->payloadSize > MaxUdpVideoFragmentPayloadSize ||
+        packet.size() != UdpVideoPacketHeaderSize + header->payloadSize) {
         return false;
     }
 
