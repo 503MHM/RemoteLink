@@ -86,7 +86,7 @@ bool UdpVideoReceiver::processDatagram(const QByteArray &datagram)
     if(!m_hasCurrentFrame)
     {
         //当前没在拼帧
-        if(startNewFrame(header.frameId,header.packetCount))
+        if(!startNewFrame(header.frameId,header.packetCount))
         {
             return false;
         }
@@ -94,7 +94,7 @@ bool UdpVideoReceiver::processDatagram(const QByteArray &datagram)
     else if(header.frameId>m_currentFrameId)
     {
         //来了新帧丢弃旧的
-        if(startNewFrame(header.frameId,header.packetCount))
+        if(!startNewFrame(header.frameId,header.packetCount))
         {
             return false;
         }

@@ -53,6 +53,8 @@ signals:
     //socket 写缓冲低于低水位
     void writeBufferBeLowWatermark();
 
+    void sessionEstablished(quint32 sessionId);
+
 private slots:
     void onConnected();
     void onDisconnected();

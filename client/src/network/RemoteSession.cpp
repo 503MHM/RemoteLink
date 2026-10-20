@@ -233,6 +233,7 @@ void RemoteSession::onDisconnected()
 {
     m_heartbeatTimer.stop();
     m_codec.clear();
+    m_sessionId=0;
 
     qDebug() << "[client] disconnected";
     emit this->disconnected();
@@ -256,27 +257,37 @@ void RemoteSession::onReadyread()
     m_codec.appendData(Recedata);
     while (auto packet=m_codec.takePacket())
     {
+        if(packet->type==MessageType::HeartbeatAck)
+        {
+            if(packet->sessionId==0)
+            {
+                qWarning()<<"[client] heartbeat ack has invalid sessionId";
+                continue;
+            }
+
+            if(m_sessionId==0)
+            {
+                m_sessionId=packet->sessionId;
+                emit sessionEstablished(m_sessionId);
+            }
+            else if(packet->sessionId!=m_sessionId)
+            {
+                qWarning()<<"[client] heartbeat ack received";
+                m_lastPongTime.restart();
+                continue;
+            }
+        }
+
+
         //校验sessionId
         if(m_sessionId!=0 && packet->sessionId!=m_sessionId){
             continue;
         }
-
         
         if(packet->type==MessageType::FrameData){
 
             emit frameDataReceived(packet->payload);
 
-        }
-
-        else if(packet->type==MessageType::HeartbeatAck){
-            qDebug() << "[client] heartbeat ack received";
-            
-            if(m_sessionId==0 && packet->sessionId!=0)
-            {
-                m_sessionId=packet->sessionId;
-            }
-
-            m_lastPongTime.restart();
         }
 
         else if(packet->type==MessageType::ServerKick){

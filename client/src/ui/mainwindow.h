@@ -10,6 +10,8 @@ class DiscoveryClient;
 class FileTransferClient;
 class FrameDecodeWorker;
 class VideoReceiver;
+class UdpVideoReceiver;
+class QThread;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -52,6 +54,8 @@ private:
 
     //video payload解析
     VideoReceiver *m_videoReceiver=nullptr;
+
+    UdpVideoReceiver *m_udpVideoReceiver=nullptr;
 
 private slots:
     //添加发现的远程设备

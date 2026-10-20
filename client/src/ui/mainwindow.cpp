@@ -7,6 +7,7 @@
 #include "file/FileTransferClient.h"
 #include "decode/FrameDecodeWorker.h"
 #include "video/VideoReceiver.h"
+#include "video/UdpVideoReceiver.h"
 
 #include <QTimer>
 #include <QPixmap>
@@ -24,6 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_session(new RemoteSession(this))
     , m_fileTransferClient(new FileTransferClient(this))
     , m_videoReceiver(new VideoReceiver(this))
+    , m_udpVideoReceiver(new UdpVideoReceiver(this))
 {
     ui->setupUi(this);
     this->setWindowTitle("Client");
@@ -54,11 +56,23 @@ MainWindow::MainWindow(QWidget *parent)
 
     //connect(m_session,&RemoteSession::frameDataReceived,this,&MainWindow::onFrameDataReceived);
     connect(m_session,&RemoteSession::frameDataReceived,m_videoReceiver,&VideoReceiver::onFrameDataReceived);
+
+    //TCP 会话建立后，把服务端分配的 sessionId 交给 UDP 接收器。
+    connect(m_session,&RemoteSession::sessionEstablished,m_udpVideoReceiver,&UdpVideoReceiver::setSessionId);
+    // UDP 分片重组完成后，交给原有的视频帧解析器。
+    connect(m_udpVideoReceiver,&UdpVideoReceiver::framePayloadReceived,m_videoReceiver,&VideoReceiver::onFrameDataReceived);
+
     connect(m_videoReceiver,&VideoReceiver::jpegDataReceived,this,&MainWindow::onFrameDataReceived);
     connect(m_frameDecodeWorker,&FrameDecodeWorker::frameDecoded,this,&MainWindow::onFrameDecoded);
     connect(m_frameDecodeThread,&QThread::finished,m_frameDecodeWorker, &QObject::deleteLater);
     connect(m_frameDecodeWorker,&FrameDecodeWorker::decodeFailed,this,&MainWindow::onFrameDecodeFailed);
     m_frameDecodeThread->start();
+
+    //启动UDP监听
+    if(!m_udpVideoReceiver->start(RemoteLink::VideoUdpPort))
+    {
+        ui->status_label->setText(QStringLiteral("视频 UDP 端口启动失败"));
+    }
 
 
     //开启udp扫描设备
@@ -89,6 +103,8 @@ MainWindow::MainWindow(QWidget *parent)
         ui->connect_pushButton->setEnabled(false);
     });
     connect(m_session, &RemoteSession::disconnected,this, [this]() {
+        m_udpVideoReceiver->setSessionId(0);
+
         ui->status_label->setText("已断开");
         m_fileTransferClient->cancel();         //断连后让子线程停止继续读文件
         ui->sendFile_pushButton->setEnabled(true);

@@ -78,7 +78,7 @@ bool UdpVideoSender::sendFrame(quint32 frameId, const QByteArray &videoPayload)
         return false;
     }
 
-    if(videoPayload.size()>RemoteLink::MaxUdpVideoFragmentPayloadSize || 
+    if(videoPayload.size()>RemoteLink::MaxUdpVideoFramePayloadSize || 
         m_fragmentPayloadSize <= 0 ||
         m_fragmentPayloadSize > RemoteLink::MaxUdpVideoFragmentPayloadSize)
     {
