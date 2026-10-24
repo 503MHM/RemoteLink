@@ -1,6 +1,7 @@
 #include "UdpVideoReceiver.h"
 #include "protocol/UdpVideoPacket.h"
 #include <QHostAddress>
+#include <QVariant>
 
 
 UdpVideoReceiver::UdpVideoReceiver(QObject *parent)
@@ -40,12 +41,19 @@ bool UdpVideoReceiver::start(quint16 port)
 
     resetFrameAssembly();
 
-    bool ret=m_socket.bind(QHostAddress::AnyIPv4,port,QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
+    const bool ret=m_socket.bind(
+        QHostAddress::AnyIPv4,
+        port,
+        QUdpSocket::DontShareAddress);
     if(!ret)
     {
         emit errorOccurred(QString("Failed to bind video receiving port: %1").arg(m_socket.errorString()));
         return false;
     }
+
+    m_socket.setSocketOption(
+        QAbstractSocket::ReceiveBufferSizeSocketOption,
+        QVariant(4 * 1024 * 1024));
 
     return true;
 }

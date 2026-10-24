@@ -4,6 +4,7 @@
 #include "file/FileReceiver.h"
 #include "capture/CaptureWorker.h"
 #include "video/VideoSender.h"
+#include "video/UdpVideoSender.h"
 
 #include <QObject>
 #include <QTcpServer>
@@ -71,5 +72,7 @@ private:
     bool m_captureStarted=false;
 
     VideoSender m_videoSender;
+
+    UdpVideoSender m_udpVideoSender;
 
 };

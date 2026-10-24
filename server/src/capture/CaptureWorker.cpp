@@ -1,7 +1,5 @@
 #include "CaptureWorker.h"
 #include "ScreenCapture.h"
-#include <QElapsedTimer>
-#include <QDebug>
 
 CaptureWorker::CaptureWorker(QObject *partent)
     :QObject(partent)
@@ -19,9 +17,12 @@ void CaptureWorker::startCaptureWork(quint16 intervalMS)
         m_timer = new QTimer(this);
 
         connect(m_timer, &QTimer::timeout, this, [this]() {
+            QImage frame = sc.captureFrame();
+            if (frame.isNull()) {
+                return;
+            }
 
-            QByteArray frameData = sc.captureJpeg(100);
-
+            const QByteArray frameData = ScreenCapture::encodeJpeg(frame, 40);
             if (!frameData.isEmpty()) {
                 emit frameReady(frameData);
             }

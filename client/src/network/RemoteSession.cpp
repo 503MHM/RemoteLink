@@ -273,9 +273,11 @@ void RemoteSession::onReadyread()
             else if(packet->sessionId!=m_sessionId)
             {
                 qWarning()<<"[client] heartbeat ack received";
-                m_lastPongTime.restart();
                 continue;
             }
+
+            m_lastPongTime.restart();
+            continue;
         }
 
 
@@ -283,14 +285,8 @@ void RemoteSession::onReadyread()
         if(m_sessionId!=0 && packet->sessionId!=m_sessionId){
             continue;
         }
-        
-        if(packet->type==MessageType::FrameData){
 
-            emit frameDataReceived(packet->payload);
-
-        }
-
-        else if(packet->type==MessageType::ServerKick){
+        if(packet->type==MessageType::ServerKick){
             m_manualDisconnect=true;
             m_reconnectTimer.stop();
             m_heartbeatTimer.stop();

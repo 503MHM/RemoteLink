@@ -1,6 +1,5 @@
 
 #include "ScreenCapture.h"
-#include <QElapsedTimer>
 #include <QDebug>
 #include <QImage>
 #include <QBuffer>
@@ -18,30 +17,26 @@ ScreenCapture::~ScreenCapture()
 // ----------------------------------------------------------------------------
 // 公开接口：返回一张屏幕截图的 JPEG 字节数组
 // ----------------------------------------------------------------------------
-QByteArray ScreenCapture::captureJpeg(int quality)
+QImage ScreenCapture::captureFrame()
 {
     // 首次调用时初始化 DXGI 捕获管道
     if (!m_initialized && !initializeDXGI()) {
         qWarning() << "[DXGI] 初始化失败，无法捕获屏幕";
-        return QByteArray();
+        return {};
     }
-
-    QElapsedTimer totalTimer;
-    totalTimer.start();
 
     // 1. 获取下一帧（等待最多 500ms）
     Microsoft::WRL::ComPtr<IDXGIResource> desktopResource;
     DXGI_OUTDUPL_FRAME_INFO frameInfo;
     HRESULT hr = m_dupl->AcquireNextFrame(16, &frameInfo, desktopResource.GetAddressOf());
     if (hr == DXGI_ERROR_WAIT_TIMEOUT) {
-        qDebug() << "[DXGI] 无新帧（超时）";
-        return QByteArray();
+        return {};
     }
     if (FAILED(hr)) {
         qWarning() << "[DXGI] AcquireNextFrame 失败: 0x" << QString::number(hr, 16);
         // 设备丢失时可尝试重初始化
         cleanupDXGI();
-        return QByteArray();
+        return {};
     }
 
     // 2. 将获取的桌面纹理复制到 staging 纹理（CPU 可读）
@@ -50,7 +45,7 @@ QByteArray ScreenCapture::captureJpeg(int quality)
     if (FAILED(hr)) {
         m_dupl->ReleaseFrame();
         qWarning() << "[DXGI] 纹理 QueryInterface 失败";
-        return QByteArray();
+        return {};
     }
 
     m_d3dContext->CopyResource(m_stagingTex.Get(), acquiredImage.Get());
@@ -65,7 +60,7 @@ QByteArray ScreenCapture::captureJpeg(int quality)
     hr = m_d3dContext->Map(m_stagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped);
     if (FAILED(hr)) {
         qWarning() << "[DXGI] Map 失败";
-        return QByteArray();
+        return {};
     }
 
     // 5. 构造 QImage（格式 DXGI_FORMAT_B8G8R8A8_UNORM 与 QImage::Format_ARGB32 兼容）
@@ -87,7 +82,15 @@ QByteArray ScreenCapture::captureJpeg(int quality)
     }
     m_d3dContext->Unmap(m_stagingTex.Get(), 0);
 
-    // 6. 压缩为 JPEG
+    return image;
+}
+
+QByteArray ScreenCapture::encodeJpeg(const QImage &image, int quality)
+{
+    if (image.isNull()) {
+        return {};
+    }
+
     QByteArray jpegData;
     QBuffer buffer(&jpegData);
     buffer.open(QIODevice::WriteOnly);
@@ -96,7 +99,6 @@ QByteArray ScreenCapture::captureJpeg(int quality)
         return QByteArray();
     }
 
-    //qDebug() << "[DXGI] 捕获+编码耗时:" << totalTimer.elapsed() << "ms, 大小:" << jpegData.size() << "bytes";
     return jpegData;
 }
 

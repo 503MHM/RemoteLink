@@ -17,7 +17,6 @@ public slots:
     void stopCaptureWork();
 private:
     QTimer *m_timer=nullptr;
-
     ScreenCapture sc;
 
 signals:

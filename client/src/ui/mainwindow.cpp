@@ -54,9 +54,6 @@ MainWindow::MainWindow(QWidget *parent)
 
 
 
-    //connect(m_session,&RemoteSession::frameDataReceived,this,&MainWindow::onFrameDataReceived);
-    connect(m_session,&RemoteSession::frameDataReceived,m_videoReceiver,&VideoReceiver::onFrameDataReceived);
-
     //TCP 会话建立后，把服务端分配的 sessionId 交给 UDP 接收器。
     connect(m_session,&RemoteSession::sessionEstablished,m_udpVideoReceiver,&UdpVideoReceiver::setSessionId);
     // UDP 分片重组完成后，交给原有的视频帧解析器。

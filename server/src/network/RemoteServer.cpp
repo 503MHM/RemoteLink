@@ -1,14 +1,13 @@
 #include "RemoteServer.h"
-#include "../capture/ScreenCapture.h"
 #include "protocol/PacketCodec.h"
 #include "./control/MouseController.h"
 #include "control/KeyboardController.h"
 #include "file/FileReceiver.h"
 #include "protocol/VideoFramePayload.h"
+#include "protocol/NetworkConstants.h"
 
 #include <QDebug>
 #include <QRandomGenerator>
-#include <QDateTime>
 
 using namespace RemoteLink;
 
@@ -18,6 +17,9 @@ RemoteServer::RemoteServer(QObject *parent)
     {
     connect(&m_server, &QTcpServer::newConnection, this, &RemoteServer::onNewConnection);
     
+    connect(&m_udpVideoSender,&UdpVideoSender::errorOccurred,this,[](const QString &message){
+        qWarning()<<message;
+    });
 
     //创建截图子线程
     m_captureThread=new QThread(this);
@@ -104,6 +106,9 @@ void RemoteServer::onNewConnection()
         m_nextServerSequence=1;
         m_videoSender.reset();
         m_codec.clear();
+
+        m_udpVideoSender.setTarget(client->peerAddress(),RemoteLink::VideoUdpPort);
+        m_udpVideoSender.setSessionId(m_sessionId);
 
         connect(client, &QTcpSocket::readyRead, this, &RemoteServer::onReadyRead);
         connect(client, &QTcpSocket::disconnected, this, &RemoteServer::onClientDisconnected);
@@ -207,7 +212,13 @@ void RemoteServer::onClientDisconnected()
     MouseController::releaseAllButtons();
 
     if (client == m_currClientSocket) {
+
+        m_udpVideoSender.clearTarget();
+        m_udpVideoSender.setSessionId(0);
+
+
         m_currClientSocket = nullptr;
+        m_sessionId=0;
         emit clientDisconnected();
     }
 
@@ -257,6 +268,10 @@ void RemoteServer::cleanupClient(bool notifyClient)
         sendServerKick();
     }
 
+    m_udpVideoSender.clearTarget();
+    m_udpVideoSender.setSessionId(0);
+    m_sessionId = 0;
+
     disconnect(m_currClientSocket, nullptr, this, nullptr);
     m_currClientSocket->disconnectFromHost();
     m_currClientSocket->deleteLater();
@@ -271,34 +286,24 @@ bool RemoteServer::sendVideoFrame(const QByteArray &frameData)
         qDebug()<<"[RemoteServer] send frame data filed!,disconnected";
         return false;
     }
-    
-    if (m_currClientSocket->bytesToWrite() > 2 * 1024 * 1024) {
-        return false;
-    }
 
-    //构造视频帧头
+    //构造视频帧
     const QByteArray videoPayload=m_videoSender.bulidJpegFramePayload(frameData);
     if(videoPayload.isEmpty())
-        return false;
-    //打包
-    Packet packet;
-    packet.type=MessageType::FrameData;
-    packet.sessionId=m_sessionId;
-    packet.sequence=m_nextServerSequence;
-    packet.payload=videoPayload;
-    
-    QByteArray sendData=PacketCodec::encode(packet);
-    if(sendData.isEmpty())
-    {
-        return false;
-    }
-    if(m_currClientSocket->write(sendData)==-1)
     {
         return false;
     }
 
-    m_nextServerSequence++;
-    return true;
+    RemoteLink::VideoFrameHeader frameHeader;
+    QByteArray jpegData;
+
+    if(!RemoteLink::decodeVideoFramePayload(videoPayload,&frameHeader,&jpegData))
+    {
+        qWarning() << "[RemoteServer] invalid video payload";
+        return false;
+    }
+
+    return m_udpVideoSender.sendFrame(frameHeader.frameId, videoPayload);
 }
 
 void RemoteServer::disconnectClient()

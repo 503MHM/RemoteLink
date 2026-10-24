@@ -47,9 +47,6 @@ signals:
     void disconnected();
     void errorOccurred(const QString &message);
 
-    //已解包的原始数据
-    void frameDataReceived(const QByteArray &frameData);
-
     //socket 写缓冲低于低水位
     void writeBufferBeLowWatermark();
 

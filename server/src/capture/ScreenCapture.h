@@ -1,23 +1,9 @@
-// #pragma once
-
-// #include <QByteArray>
-
-// class ScreenCapture
-// {
-
-// public:
-//     ScreenCapture();
-//     ~ScreenCapture();
-
-//     static QByteArray captureJpeg(int qulity=60);
-
-// };
-
 #ifndef SCREENCAPTURE_H
 #define SCREENCAPTURE_H
 
 #include <QObject>
 #include <QByteArray>
+#include <QImage>
 #include <d3d11.h>
 #include <dxgi1_2.h>
 #include <wrl/client.h>   // 微软 ComPtr，零开销智能指针
@@ -30,9 +16,11 @@ public:
     explicit ScreenCapture(QObject *parent = nullptr);
     ~ScreenCapture();
 
-    // 捕获一帧屏幕并返回 JPEG 字节数组
-    // quality 为 JPEG 压缩质量 (0-100, -1 为默认)
-    QByteArray captureJpeg(int quality = 100);
+    // Capture a desktop image; a null image means no frame was available.
+    QImage captureFrame();
+
+    // Encode a captured image as JPEG. quality is in the range 0-100.
+    static QByteArray encodeJpeg(const QImage &image, int quality = 100);
 
 private:
     bool initializeDXGI();   // 只在首次调用时执行初始化
