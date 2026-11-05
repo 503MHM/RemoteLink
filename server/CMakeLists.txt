@@ -25,8 +25,8 @@ qt_add_executable(server
     src/network/ServerWorker.h
     src/network/ServerWorker.cpp
     ${SERVER_RESOURCES_FILE}
-    src/video/VideoSender.cpp
-    src/video/VideoSender.h
+    src/video/VideoFrameBuilder.cpp
+    src/video/VideoFrameBuilder.h
     src/video/UdpVideoSender.h
     src/video/UdpVideoSender.cpp
     

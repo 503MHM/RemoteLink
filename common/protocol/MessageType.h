@@ -6,13 +6,7 @@ namespace RemoteLink {
 
 enum class MessageType : quint16
 {
-    Discovery = 101,
-    DiscoveryReply = 102,
-
-    FrameData = 301,
-    
     MouseMove = 401,
-    MouseClick = 402,
     MouseWheel = 403,
     MousePress = 404,
     MouseRelease = 405,

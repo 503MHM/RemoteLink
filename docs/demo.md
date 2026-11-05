@@ -25,6 +25,7 @@
 | --- | ---: |
 | TCP 远程连接 | 45454 |
 | UDP 设备发现 | 45455 |
+| UDP 视频传输 | 45456 |
 
 ## 3. 启动 server
 
@@ -121,7 +122,13 @@ server 程序目录/downloads
 - JPEG 帧较大。
 - server socket 写缓冲出现积压。
 
-可以观察 client 的 received fps、decoded fps、display fps，以及 server 的发送日志。
+可以观察以下每秒聚合指标：
+
+- server `[capture]`：采集 FPS、JPEG FPS、采集/编码平均与最大耗时、平均 JPEG 大小。
+- server `[udp-tx]`：视频帧率、UDP 数据报率、网络吞吐和发送失败数。
+- client `[udp-rx]`：收到的数据报、完整帧、替换帧、超时帧、缺失分片和拒绝数据报。
+- client `[decode]`：JPEG 解码 FPS、失败数、平均与最大解码耗时。
+- client 界面：`display fps`，表示最终刷新到画面的频率。
 
 ### 9.3 鼠标键盘没有响应
 

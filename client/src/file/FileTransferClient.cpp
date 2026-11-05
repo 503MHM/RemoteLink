@@ -1,12 +1,5 @@
 #include "FileTransferClient.h"
 
-#include <QFile>
-#include <QFileInfo>
-#include <QJsonObject>
-#include <QJsonDocument>
-#include <QUuid>
-
-
 FileTransferClient::FileTransferClient(QObject *partent)
     :QObject(partent)
 {
@@ -56,7 +49,6 @@ void FileTransferClient::sendFile(const QString &filePath, RemoteSession *sessio
 
 
     constexpr qint64 HightWatermark=2*1024*1024;
-    constexpr qint64 LowWatermark=512*1024;
 
     //请求读取下一个数据块
     auto requestNextChunk=[this,session,HightWatermark](){
@@ -106,7 +98,6 @@ void FileTransferClient::sendFile(const QString &filePath, RemoteSession *sessio
             emit errorOccurred("[FileTransferClient] send FileData failed");
             cancel();
         }
-        qDebug() << "[file] bytesToWrite =" << session->bytesToWrite();
         requestNextChunk();
     });
 

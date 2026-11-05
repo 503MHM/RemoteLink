@@ -2,7 +2,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QDir>
-#include <QApplication>
+#include <QCoreApplication>
+#include <QFileInfo>
+#include <QDebug>
 #include "protocol/FileTransferPayload.h"
 
 FileReceiver::FileReceiver(QObject *partent)
@@ -49,6 +51,9 @@ bool FileReceiver::handleFileBegin(const QByteArray &payload)
     m_totalBytes=fileSize;
     m_receivedBytes=0;
     m_expectedChunkIndex=0;
+    m_lastProgressBytes = 0;
+    m_transferTimer.start();
+    m_progressTimer.start();
 
     //发送给UI文件信息
     emit receiveStarted(fileName,m_totalBytes);
@@ -93,7 +98,17 @@ bool FileReceiver::handleFileData(const QByteArray &payload)
     //发送给UI文件信息
     emit receiveProgress(m_receivedBytes,m_totalBytes);
 
-    qDebug() << "[file] progress:" << m_receivedBytes << "/" << m_totalBytes;
+    const qint64 progressIntervalMs = m_progressTimer.elapsed();
+    if (progressIntervalMs >= 1000) {
+        const quint64 intervalBytes = m_receivedBytes - m_lastProgressBytes;
+        const double mibPerSec = intervalBytes / (progressIntervalMs / 1000.0)
+            / (1024.0 * 1024.0);
+        qInfo() << "[file-rx] received_bytes=" << m_receivedBytes
+                << "total_bytes=" << m_totalBytes
+                << "mib_per_sec=" << mibPerSec;
+        m_lastProgressBytes = m_receivedBytes;
+        m_progressTimer.restart();
+    }
     return true;
 }
 
@@ -118,14 +133,19 @@ bool FileReceiver::handleFileEnd(const QByteArray &payload)
     }
 
     bool ok = (m_receivedBytes == m_totalBytes);
+    const qint64 transferElapsedMs = m_transferTimer.elapsed();
+    const double transferSeconds = transferElapsedMs / 1000.0;
+    const double averageMibPerSec = transferSeconds > 0.0
+        ? m_receivedBytes / transferSeconds / (1024.0 * 1024.0) : 0.0;
 
     //发送给UI文件信息
     emit receiveFinished(ok,QFileInfo(m_file).absoluteFilePath());
 
 
-    qDebug() << "[file] end, received =" << m_receivedBytes
-             << "total =" << m_totalBytes
-             << "ok =" << ok;
+    qInfo() << "[file-rx] complete bytes=" << m_receivedBytes
+            << "elapsed_sec=" << transferSeconds
+            << "average_mib_per_sec=" << averageMibPerSec
+            << "ok=" << ok;
 
     m_fileId.clear();
     m_totalBytes = 0;

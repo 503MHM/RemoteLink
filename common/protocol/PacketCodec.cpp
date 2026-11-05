@@ -98,13 +98,9 @@ void PacketCodec::clear()
 bool PacketCodec::isValidMessageType(quint16 type)
 {
     switch (static_cast<MessageType>(type)) {
-        case MessageType::Discovery:
-        case MessageType::DiscoveryReply:
         case MessageType::Heartbeat:
         case MessageType::HeartbeatAck:
-        case MessageType::FrameData:
         case MessageType::MouseMove:
-        case MessageType::MouseClick:
         case MessageType::MouseWheel:
         case MessageType::MousePress:
         case MessageType::MouseRelease:

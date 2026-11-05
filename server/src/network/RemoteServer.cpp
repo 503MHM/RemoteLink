@@ -3,7 +3,6 @@
 #include "./control/MouseController.h"
 #include "control/KeyboardController.h"
 #include "file/FileReceiver.h"
-#include "protocol/VideoFramePayload.h"
 #include "protocol/NetworkConstants.h"
 
 #include <QDebug>
@@ -104,7 +103,7 @@ void RemoteServer::onNewConnection()
             m_sessionId=1;
         }
         m_nextServerSequence=1;
-        m_videoSender.reset();
+        m_videoFrameBuilder.reset();
         m_codec.clear();
 
         m_udpVideoSender.setTarget(client->peerAddress(),RemoteLink::VideoUdpPort);
@@ -137,10 +136,12 @@ void RemoteServer::onReadyRead()
             return;
         }
         
-        qDebug() << "[server] packet received, type ="
-                 << static_cast<quint16>(packet->type)
-                 << "sequence =" << packet->sequence
-                 << "payload =" << packet->payload.size();
+        if (packet->type != MessageType::FileData) {
+            qDebug() << "[server] packet received, type ="
+                     << static_cast<quint16>(packet->type)
+                     << "sequence =" << packet->sequence
+                     << "payload =" << packet->payload.size();
+        }
 
         //收到心跳包后启动让截图子线程启动
         if(packet->type==MessageType::Heartbeat){
@@ -287,23 +288,13 @@ bool RemoteServer::sendVideoFrame(const QByteArray &frameData)
         return false;
     }
 
-    //构造视频帧
-    const QByteArray videoPayload=m_videoSender.bulidJpegFramePayload(frameData);
-    if(videoPayload.isEmpty())
-    {
+    const EncodedVideoFrame frame =
+        m_videoFrameBuilder.buildJpegFramePayload(frameData);
+    if (frame.payload.isEmpty()) {
         return false;
     }
 
-    RemoteLink::VideoFrameHeader frameHeader;
-    QByteArray jpegData;
-
-    if(!RemoteLink::decodeVideoFramePayload(videoPayload,&frameHeader,&jpegData))
-    {
-        qWarning() << "[RemoteServer] invalid video payload";
-        return false;
-    }
-
-    return m_udpVideoSender.sendFrame(frameHeader.frameId, videoPayload);
+    return m_udpVideoSender.sendFrame(frame.frameId, frame.payload);
 }
 
 void RemoteServer::disconnectClient()

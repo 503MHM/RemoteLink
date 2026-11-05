@@ -24,8 +24,8 @@ qt_add_executable(client
     src/decode/FrameDecodeWorker.h
     src/decode/FrameDecodeWorker.cpp
 
-    src/video/VideoReceiver.h
-    src/video/VideoReceiver.cpp
+    src/video/VideoFrameParser.h
+    src/video/VideoFrameParser.cpp
 
     ${RESOURCES_FILE}
     src/video/UdpVideoReceiver.h

@@ -1,4 +1,5 @@
 #include "DiscoveryClient.h"
+#include "protocol/NetworkConstants.h"
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QNetworkDatagram>
@@ -37,7 +38,7 @@ bool DiscoveryClient::start(quint16 discoveryPort)
 void DiscoveryClient::search()
 {
     QJsonObject obj;
-    obj["type"] = "DISCOVERY";
+    obj["type"] = QString::fromLatin1(RemoteLink::DiscoveryType);
     obj["clientName"] = "RemoteLink Client";
 
     QByteArray sendData = QJsonDocument(obj).toJson(QJsonDocument::Compact);
@@ -83,7 +84,8 @@ void DiscoveryClient::onReadyread(){
         if(!doc.isObject()) continue;
 
         QJsonObject obj=doc.object();
-        if(obj.value("type").toString()!="DISCOVERY_REPLY"){
+        if(obj.value("type").toString() !=
+           QString::fromLatin1(RemoteLink::DiscoveryReplyType)) {
             continue;
         }
 

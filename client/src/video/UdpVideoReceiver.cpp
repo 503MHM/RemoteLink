@@ -1,5 +1,6 @@
 #include "UdpVideoReceiver.h"
 #include "protocol/UdpVideoPacket.h"
+#include <QDebug>
 #include <QHostAddress>
 #include <QVariant>
 
@@ -13,6 +14,9 @@ UdpVideoReceiver::UdpVideoReceiver(QObject *parent)
     m_assemblyTimer.setInterval(FrameAssemblyTimeoutMs);
 
     connect(&m_assemblyTimer, &QTimer::timeout, this, &UdpVideoReceiver::onAssemblyTimeout);
+
+    m_statsTimer.setInterval(1000);
+    connect(&m_statsTimer, &QTimer::timeout, this, &UdpVideoReceiver::onStatsTimer);
 }
 
 UdpVideoReceiver::~UdpVideoReceiver()
@@ -62,31 +66,39 @@ void UdpVideoReceiver::stop()
 {
     m_socket.close();
     m_assemblyTimer.stop();
+    m_statsTimer.stop();
     resetFrameAssembly();
 }
 
 bool UdpVideoReceiver::processDatagram(const QByteArray &datagram)
 {
+    ++m_statsDatagrams;
+    m_statsBytes += static_cast<quint64>(datagram.size());
+
     RemoteLink::UdpVideoPacketHeader header;
     QByteArray fragmentData;
 
     if(!RemoteLink::decodeUdpVideoPacket(datagram,&header,&fragmentData))
     {
+        ++m_statsRejectedDatagrams;
         return false;
     }
 
     if(m_currentSessionId==0 || header.sessionId!=m_currentSessionId)
     {
+        ++m_statsRejectedDatagrams;
         return false;
     }
 
     if (header.packetCount==0 || header.packetCount>RemoteLink::MaxUdpVideoPacketCount)
     {
+        ++m_statsRejectedDatagrams;
         return false;
     }
 
     if(header.packetIndex>=header.packetCount)
     {
+        ++m_statsRejectedDatagrams;
         return false;
     }
 
@@ -102,25 +114,33 @@ bool UdpVideoReceiver::processDatagram(const QByteArray &datagram)
     else if(header.frameId>m_currentFrameId)
     {
         //来了新帧丢弃旧的
+        ++m_statsReplacedFrames;
+        m_statsAbandonedExpectedFragments += m_currentPacketCount;
+        m_statsMissingFragments +=
+            m_currentPacketCount - m_receivedPacketCount;
         if(!startNewFrame(header.frameId,header.packetCount))
         {
+            ++m_statsRejectedDatagrams;
             return false;
         }
     }
     else if(header.frameId<m_currentFrameId)
     {
         //迟到的分片丢弃
+        ++m_statsStaleFragments;
         return false;
     }
     else if(header.packetCount!=m_currentPacketCount)
     {
         //同一帧但是总数不对，数据异常重置
+        ++m_statsRejectedDatagrams;
         resetFrameAssembly();
         return false;
     }
 
     if(!appendFragment(header.frameId,header.packetIndex,header.packetCount,fragmentData))
     {
+        ++m_statsRejectedDatagrams;
         return false;
     }
 
@@ -136,10 +156,12 @@ bool UdpVideoReceiver::processDatagram(const QByteArray &datagram)
     resetFrameAssembly();
     if(framePayload.isEmpty())
     {
+        ++m_statsRejectedDatagrams;
         return false;
     }
 
     //发送
+    ++m_statsCompletedFrames;
     emit framePayloadReceived(framePayload);
 
     return true;
@@ -154,6 +176,23 @@ void UdpVideoReceiver::setSessionId(quint32 sessionId)
 
     m_currentSessionId=sessionId;
     resetFrameAssembly();
+
+    m_statsDatagrams = 0;
+    m_statsBytes = 0;
+    m_statsAcceptedFragments = 0;
+    m_statsCompletedFrames = 0;
+    m_statsReplacedFrames = 0;
+    m_statsTimedOutFrames = 0;
+    m_statsMissingFragments = 0;
+    m_statsAbandonedExpectedFragments = 0;
+    m_statsRejectedDatagrams = 0;
+    m_statsStaleFragments = 0;
+
+    if (sessionId == 0) {
+        m_statsTimer.stop();
+    } else {
+        m_statsTimer.start();
+    }
 }
 
 quint32 UdpVideoReceiver::sessionId() const
@@ -179,6 +218,7 @@ void UdpVideoReceiver::onReadyRead()
         if(receiverSize<0)
         {
             //读取失败
+            ++m_statsRejectedDatagrams;
             errorOccurred(QStringLiteral("[UdpVideoReceiver] read datagram failed: %1")
             .arg(m_socket.errorString()));
             
@@ -191,7 +231,41 @@ void UdpVideoReceiver::onReadyRead()
 
 void UdpVideoReceiver::onAssemblyTimeout()
 {
+    if (m_hasCurrentFrame) {
+        ++m_statsTimedOutFrames;
+        m_statsAbandonedExpectedFragments += m_currentPacketCount;
+        m_statsMissingFragments +=
+            m_currentPacketCount - m_receivedPacketCount;
+    }
     resetFrameAssembly();
+}
+
+void UdpVideoReceiver::onStatsTimer()
+{
+    const double missingFragmentPercent = m_statsAbandonedExpectedFragments
+        ? 100.0 * m_statsMissingFragments / m_statsAbandonedExpectedFragments : 0.0;
+
+    qInfo() << "[udp-rx] datagrams_per_sec=" << m_statsDatagrams
+            << "mib_per_sec=" << m_statsBytes / (1024.0 * 1024.0)
+            << "accepted_fragments_per_sec=" << m_statsAcceptedFragments
+            << "complete_frames_per_sec=" << m_statsCompletedFrames
+            << "replaced_frames=" << m_statsReplacedFrames
+            << "timed_out_frames=" << m_statsTimedOutFrames
+            << "missing_fragments=" << m_statsMissingFragments
+            << "abandoned_fragment_missing_pct=" << missingFragmentPercent
+            << "stale_fragments=" << m_statsStaleFragments
+            << "rejected_datagrams=" << m_statsRejectedDatagrams;
+
+    m_statsDatagrams = 0;
+    m_statsBytes = 0;
+    m_statsAcceptedFragments = 0;
+    m_statsCompletedFrames = 0;
+    m_statsReplacedFrames = 0;
+    m_statsTimedOutFrames = 0;
+    m_statsMissingFragments = 0;
+    m_statsAbandonedExpectedFragments = 0;
+    m_statsRejectedDatagrams = 0;
+    m_statsStaleFragments = 0;
 }
 
 void UdpVideoReceiver::resetFrameAssembly()
@@ -254,6 +328,7 @@ bool UdpVideoReceiver::appendFragment(quint32 frameId, quint16 packetIndex, quin
     fragment=fragmentData;
     m_currentFrameBytes+=fragmentData.size();
     ++m_receivedPacketCount;
+    ++m_statsAcceptedFragments;
 
     m_assemblyTimer.start();
     return true;

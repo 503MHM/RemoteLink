@@ -5,6 +5,7 @@
 #include <QHostAddress>
 #include <QString>
 #include <QByteArray>
+#include <QElapsedTimer>
 
 
 class UdpVideoSender : public QObject
@@ -32,10 +33,17 @@ signals:
     void errorOccurred(const QString &message);
 
 private:
+    void recordSendStats(bool frameSent, quint64 datagrams, quint64 bytes);
+
     QUdpSocket m_socket;
     QHostAddress m_targetAddress;
     quint16 m_targetPort=0;
 
     quint32 m_sessionId=0;
-    qsizetype m_fragmentPayloadSize=1200;
+    qsizetype m_fragmentPayloadSize=1400;
+    QElapsedTimer m_statsTimer;
+    quint64 m_statsFramesSent = 0;
+    quint64 m_statsFramesFailed = 0;
+    quint64 m_statsDatagrams = 0;
+    quint64 m_statsBytes = 0;
 };

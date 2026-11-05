@@ -2,12 +2,13 @@
 
 ## 1. 协议概述
 
-RemoteLink 使用两类通信方式：
+RemoteLink 使用三类通信消息/通道：
 
-- UDP：用于局域网设备发现。
-- TCP：用于远程画面传输、鼠标键盘控制、文件传输、心跳保活和主动断开通知。
+- UDP JSON：用于局域网设备发现。
+- TCP：用于心跳、鼠标键盘控制、文件传输和主动断开通知。
+- UDP 二进制数据报：用于 JPEG 视频帧分片传输。
 
-UDP 发现消息直接使用 JSON。TCP 业务消息使用自定义二进制包格式，由 `PacketCodec` 负责编码和解码。
+TCP 业务消息使用自定义二进制包格式，由 `PacketCodec` 负责编码和解码。视频 UDP 数据报使用独立分片头，不经过 `PacketCodec`。
 
 默认端口：
 
@@ -15,6 +16,7 @@ UDP 发现消息直接使用 JSON。TCP 业务消息使用自定义二进制包�
 | --- | ---: | --- |
 | TCP 服务端口 | 45454 | client 连接 server 的 TCP 端口 |
 | UDP 发现端口 | 45455 | client 广播发现、server 监听发现请求 |
+| UDP 视频端口 | 45456 | client 接收 server 发送的视频分片 |
 
 ## 2. UDP 发现协议
 
@@ -79,11 +81,7 @@ TCP 是字节流协议，可能出现粘包、半包和数据错位。RemoteLink
 
 | 类型名 | 数值 | 方向 | 说明 |
 | --- | ---: | --- | --- |
-| Discovery | 101 | 未用于 TCP | 发现类型枚举保留 |
-| DiscoveryReply | 102 | 未用于 TCP | 发现响应枚举保留 |
-| FrameData | 301 | server -> client | 远程屏幕视频帧，payload 内含视频帧头和 JPEG 数据 |
 | MouseMove | 401 | client -> server | 鼠标移动 |
-| MouseClick | 402 | 保留 | 当前未使用 |
 | MouseWheel | 403 | client -> server | 鼠标滚轮 |
 | MousePress | 404 | client -> server | 鼠标按下 |
 | MouseRelease | 405 | client -> server | 鼠标释放 |
@@ -195,15 +193,19 @@ empty
 
 该消息表示 server 主动要求断开连接。client 收到后不会自动重连。
 
-### 6.4 FrameData
+### 6.4 UDP 视频帧
 
 方向：
 
 ```text
-server -> client
+server -> client，UDP 端口 `45456`
 ```
 
-payload 结构如下：
+每个 UDP 数据报由 `UdpVideoPacketHeader + fragment bytes` 组成。头部包含 magic、sessionId、frameId、packetIndex、packetCount 和 payloadSize。当前单片最大 1400 字节，单帧最大 4 MiB，最多 4096 片。
+
+接收端按 `frameId` 和 `packetIndex` 重组。收到更新帧时放弃尚未完成的旧帧；超过 200 ms 未收齐的帧会超时丢弃。UDP 不做 ACK 或重传。
+
+重组完成后的帧 payload 结构如下：
 
 ```text
 VideoFrameHeader + JPEG binary bytes
@@ -219,7 +221,7 @@ VideoFrameHeader + JPEG binary bytes
 | timestampMs | quint64 | 采集时间戳 |
 | dataSize | quint32 | 后面 JPEG 数据长度 |
 
-client 收到后先解析视频帧头，再把 JPEG 数据投递给解码线程。解码成功后显示到远程画面控件。
+client 先解析 `VideoFrameHeader`，再把 JPEG 数据投递给解码线程。解码成功后显示到远程画面控件。
 
 ### 6.5 MouseMove
 
@@ -416,13 +418,7 @@ while (auto packet = m_codec.takePacket()) {
 
 ### 8.1 远程画面发送
 
-server 发送屏幕帧前会检查 TCP 写缓冲：
-
-```text
-bytesToWrite() > 2 MB 时丢弃当前帧
-```
-
-这可以防止网络较慢时堆积大量过期画面，使远程控制尽量保持低延迟。
+视频通过 UDP 分片发送，不经过 TCP 写缓冲。接收端只重组当前最新帧；缺片帧会被新帧替换或在 200 ms 后超时丢弃。发送端日志统计应用层成功写入的 UDP 数据报，不代表对端确认收到。
 
 ### 8.2 文件发送
 
@@ -442,4 +438,4 @@ client 文件发送使用高低水位控制：
 - UDP 发现只适合可信局域网环境。
 - 文件传输当前没有断点续传。
 - 屏幕帧当前是整屏 JPEG，不是区域增量传输。
-- 当前控制、心跳、屏幕帧和文件传输共用一条 TCP 连接，后续可以进一步拆分控制连接和画面连接。
+- TCP 控制/文件通道与 UDP 视频通道相互独立。UDP 不提供可靠交付，当前没有 ACK、重传或加密。

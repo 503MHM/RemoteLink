@@ -3,7 +3,7 @@
 #include "protocol/PacketCodec.h"
 #include "file/FileReceiver.h"
 #include "capture/CaptureWorker.h"
-#include "video/VideoSender.h"
+#include "video/VideoFrameBuilder.h"
 #include "video/UdpVideoSender.h"
 
 #include <QObject>
@@ -55,12 +55,9 @@ private:
     QTcpServer m_server;
     QTcpSocket *m_currClientSocket;
     RemoteLink::PacketCodec m_codec;
-    //quint32 m_frameSequence;
 
     quint32 m_sessionId=0;
     quint32 m_nextServerSequence=1;
-
-    //quint32 m_nextVideoFrameId=1;
 
     FileReceiver m_fileReceiver;
 
@@ -71,7 +68,7 @@ private:
     //用于提示当前是否已启动截图
     bool m_captureStarted=false;
 
-    VideoSender m_videoSender;
+    VideoFrameBuilder m_videoFrameBuilder;
 
     UdpVideoSender m_udpVideoSender;
 

@@ -5,8 +5,8 @@
 RemoteLink 是一个基于 Qt 的局域网远程控制项目，分为 client 和 server 两个程序。
 
 - server 运行在被控制端，负责局域网发现响应、TCP 服务监听、屏幕采集、远程鼠标键盘执行、文件接收。
-- client 运行在控制端，负责发现 server、建立 TCP 连接、显示远程画面、发送鼠标键盘事件、发送文件。
-- common 模块提供 TCP 自定义包格式、消息类型、端口常量，以及画面和文件 payload 的二级头定义。
+- client 运行在控制端，负责发现 server、建立 TCP 连接、接收 UDP 画面、发送鼠标键盘事件、发送文件。
+- common 模块提供 TCP 自定义包格式、UDP 视频分片格式、端口常量，以及视频和文件 payload 定义。
 
 当前项目主要面向 Windows。server 端屏幕采集使用 DXGI Desktop Duplication，鼠标键盘控制使用 Windows API。
 
@@ -44,7 +44,7 @@ server 是被控制端。它启动服务后：
 1. 通过 UDP 监听局域网发现请求。
 2. 通过 TCP 监听 client 连接。
 3. 收到 client 心跳后启动屏幕采集。
-4. 将屏幕 JPEG 帧通过 TCP 发送给 client。
+4. 将屏幕 JPEG 帧通过 UDP 分片发送给 client。
 5. 接收 client 发来的鼠标、键盘、文件消息。
 6. 将接收到的文件保存到 server 程序目录下的 `downloads` 目录。
 
@@ -69,7 +69,8 @@ common 模块定义了 TCP 自定义协议。
 - `Packet`：统一 TCP 数据包结构。
 - `PacketCodec`：负责粘包、拆包、编码、解码。
 - `NetworkConstants`：默认 TCP/UDP 端口。
-- `VideoFramePayload`：`FrameData` 的视频帧 payload 结构。
+- `VideoFramePayload`：完整视频帧的头部与 JPEG 数据结构。
+- `UdpVideoPacket`：视频 UDP 数据报的分片头及编解码函数。
 - `FileTransferPayload`：`FileData` 的文件分片 payload 结构。
 
 所有 TCP 业务消息都经过 `PacketCodec` 编码和解码。UDP 发现消息不走 `PacketCodec`，而是直接发送 JSON。
@@ -91,7 +92,7 @@ server 网络模块主要由三个类组成：
 
 - `DiscoveryResponder`：UDP 发现响应，监听 client 的发现广播并回复 server 信息。
 - `ServerWorker`：运行在 server 后台线程中，负责创建和管理 `RemoteServer`。
-- `RemoteServer`：真正的 TCP 服务对象，负责监听连接、收包、发帧、分发控制和文件消息。
+- `RemoteServer`：TCP 服务对象，负责连接、心跳、控制和文件消息；同时配置 UDP 视频目标地址。
 
 当前 server 限制为单 client 连接。如果已经有 client 连接，新的连接会被拒绝。
 
@@ -99,25 +100,19 @@ server 网络模块主要由三个类组成：
 
 server 截图模块包括：
 
-- `ScreenCapture`：基于 DXGI Desktop Duplication 获取屏幕帧，并编码为 JPEG。
-- `CaptureWorker`：运行在截图线程中，通过 `QTimer` 定时调用 `ScreenCapture::captureJpeg()`。
+- `ScreenCapture`：基于 DXGI Desktop Duplication 获取 `QImage`，并提供 JPEG 编码。
+- `CaptureWorker`：运行在截图线程中，通过 `QTimer` 定时采集和编码，并每秒统计采集/编码耗时和 JPEG 大小。
 
 client 连接后发送心跳，server 收到心跳后启动截图定时器。当前截图间隔为 16 ms，理论目标接近 60 FPS，但实际帧率受采集、JPEG 编码、网络和 socket 缓冲影响。
 
-`FrameData` 目前仍走 TCP，但 payload 已经拆成两层：
+视频帧经 `VideoFrameBuilder` 添加帧头，再由 `UdpVideoSender` 分片：
 
 ```text
-Packet(FrameData)
+UDP datagrams
 └── VideoFrameHeader + JPEG bytes
 ```
 
-server 发送帧前会检查 socket 写缓冲：
-
-```text
-bytesToWrite() > 2 MB 时丢弃当前帧
-```
-
-这样可以避免 server 无限制堆积过期画面。
+`VideoFrameBuilder` 负责帧号和帧头，`UdpVideoSender` 负责分片发送，并每秒输出发送帧数、数据报数、字节吞吐和发送失败数。
 
 ### 4.5 server 控制模块
 
@@ -159,9 +154,11 @@ client 主窗口负责：
 client 网络模块包括：
 
 - `DiscoveryClient`：UDP 广播搜索 server。
-- `RemoteSession`：TCP client 会话，负责连接 server、发送控制消息、接收屏幕帧。
+- `RemoteSession`：TCP client 会话，负责连接 server、心跳和发送控制/文件消息。
+- `UdpVideoReceiver`：绑定视频 UDP 端口，校验会话并重组最新完整帧。
+- `VideoFrameParser`：解析重组后的完整视频 payload，提取 JPEG。
 
-`RemoteSession` 当前运行在 UI 线程中。它不会直接解码 JPEG，而是收到 `FrameData` 后将视频 payload 交给 UI 层解析，再把原始 JPEG 数据发给解码线程。
+`RemoteSession`、`UdpVideoReceiver` 和 `VideoFrameParser` 当前运行在 UI 线程中。JPEG 数据随后交给独立解码线程。
 
 ### 4.9 client 解码模块
 
@@ -174,8 +171,8 @@ client 使用独立线程解码 JPEG：
 client 做了“只保留最新帧”的处理：
 
 ```text
-如果解码线程忙，新来的帧覆盖 pendingFrameData
-解码完成后只继续处理最新 pending 帧
+如果解码线程忙，新来的 JPEG 覆盖 pendingJpegData
+解码完成后只继续处理最新 pending JPEG
 ```
 
 这样可以避免 client 解码队列堆积大量过期帧。
@@ -224,9 +221,9 @@ server 进程
 说明：
 
 - UI 主线程只负责界面和 UDP 发现响应。
-- TCP 监听、收包、发帧、文件接收运行在 `serverThread`。
+- TCP 监听、控制收包、文件接收和 UDP 视频发送运行在 `serverThread`。
 - 屏幕采集运行在 `captureThread`。
-- `CaptureWorker::frameReady` 跨线程回到 `RemoteServer` 后，由 `RemoteServer` 写 TCP socket。
+- `CaptureWorker::frameReady` 跨线程回到 `RemoteServer` 后，由 `UdpVideoSender` 发送视频分片。
 
 ### 5.2 client 线程
 
@@ -276,9 +273,10 @@ server RemoteServer
 server CaptureWorker
     └── DXGI capture + JPEG encode
 server RemoteServer
-    └── TCP FrameData
-client RemoteSession
-    └── frameDataReceived
+    └── VideoFrameBuilder
+        └── UdpVideoSender 分片
+client UdpVideoReceiver
+    └── VideoFrameParser
 client FrameDecodeWorker
     └── JPEG decode
 client MainWindow
@@ -318,14 +316,29 @@ server FileReceiver
 - client 将 JPEG 解码放入独立线程，降低 UI 卡顿概率。
 - client 解码侧只保留最新帧，避免过期画面堆积。
 - 文件发送支持 socket 写缓冲水位控制，避免一次性塞入过多文件数据。
-- TCP 使用统一包头解决粘包和半包问题，`FrameData` 和 `FileData` 再各自携带二级 payload 头。
+- TCP 使用统一包头解决粘包和半包问题，文件消息携带文件 payload 头；视频使用独立 UDP 分片头。
 
 ## 8. 已知限制和后续优化方向
 
 - server 目前只支持单 client 连接。
 - TCP 协议层已加入最大 payload 长度限制，当前上限为 4 MB。
 - server 文件接收当前运行在 TCP 线程，大文件写盘较慢时可能影响控制事件处理。
-- 屏幕传输当前仍是整屏 JPEG，尚未使用 DXGI dirty rects 和 move rects。
+- 屏幕传输当前是整屏 JPEG over UDP，尚未使用 DXGI dirty rects 和 move rects。
 - client 的 TCP socket 当前仍在 UI 线程。当前重活已拆到解码线程和文件线程，后续如果 UI 收包压力变大，可考虑将 `RemoteSession` 移到独立网络线程。
-- 当前控制、心跳、屏幕帧和文件传输共用一条 TCP 连接。后续第二大步会把画面数据通道进一步拆出去。
+- 当前控制、心跳和文件传输共用 TCP，屏幕帧已经通过独立 UDP 通道传输。
 - 当前控制和截图实现主要面向 Windows。
+
+## 9. 重构进度
+
+当前按“协议定义 -> 通道拆分 -> UDP 视频 -> 工程化 -> 编码升级 -> 界面完善”的顺序推进。
+
+| 阶段 | 状态 | 说明 |
+| --- | --- | --- |
+| 1. 协议收口 | 已完成定义层和编解码层 | TCP 包头包含 `sessionId` 和长度限制；消息类型按实际 TCP 业务保留；视频和文件 payload 各自定义结构。`ProtocolErrorCode` 已定义，但还没有统一映射到所有业务错误路径。 |
+| 2. 通道拆分 | 已完成 | TCP 用于心跳、输入控制和文件；UDP 用于发现和视频。 |
+| 3. UDP 视频 | 已完成基础实现 | JPEG over UDP，支持分片、会话校验、重组、超时/新帧替换和最新帧策略。当前无 ACK、重传或 FEC。 |
+| 4. 工程化 | 进行中 | 已有自动重连、分阶段性能日志和文件吞吐统计；配对码/认证未实现，网络丢包率尚无可靠端到端统计。 |
+| 5. 编码升级 | 未开始 | 后续评估 FFmpeg H.264；不把编码升级作为当前必需项。 |
+| 6. 界面完善 | 未开始 | 当前沿用 Widgets，性能和日志主要通过现有状态显示及运行日志输出。 |
+
+因此当前项目完成到第 3 阶段，正在补第 4 阶段工程化能力。下一阶段优先完善 UDP 发送错误诊断、端到端丢包/积压统计和认证，再评估编码与界面工作。

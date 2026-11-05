@@ -6,6 +6,7 @@
 #include <QByteArray>
 #include <QUdpSocket>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <optional>
 
 class UdpVideoReceiver : public QObject
@@ -41,6 +42,7 @@ private slots:
     void onReadyRead();
     //拼帧超时触发，放弃迟迟拼不齐的半帧
     void onAssemblyTimeout();
+    void onStatsTimer();
 
 private:
     //清空所有重组状态，回到空闲态
@@ -61,6 +63,7 @@ private:
     QUdpSocket m_socket;
     
     QTimer m_assemblyTimer;             //拼帧超时定时器（单次触发，每帧开始时启动）
+    QTimer m_statsTimer;
 
     quint32 m_currentSessionId=0;       //当前会话ID，用于过滤非本会话的包
     
@@ -74,5 +77,16 @@ private:
     quint16 m_receivedPacketCount=0;    //已收到的去重分片数量
 
     qsizetype m_currentFrameBytes = 0;
+
+    quint64 m_statsDatagrams = 0;
+    quint64 m_statsBytes = 0;
+    quint64 m_statsAcceptedFragments = 0;
+    quint64 m_statsCompletedFrames = 0;
+    quint64 m_statsReplacedFrames = 0;
+    quint64 m_statsTimedOutFrames = 0;
+    quint64 m_statsMissingFragments = 0;
+    quint64 m_statsAbandonedExpectedFragments = 0;
+    quint64 m_statsRejectedDatagrams = 0;
+    quint64 m_statsStaleFragments = 0;
 
 };

@@ -1,4 +1,5 @@
 #include "DiscoveryResponder.h"
+#include "protocol/NetworkConstants.h"
 #include <QNetworkDatagram>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -58,13 +59,16 @@ void DiscoveryResponder::onReadyRead(){
 
         //json对象
         QJsonObject obj=doc.object();
-        if(obj.value("type").toString()!="DISCOVERY") continue;
+        if (obj.value("type").toString() !=
+            QString::fromLatin1(RemoteLink::DiscoveryType)) {
+            continue;
+        }
 
         
         //回复client
         //创建一个json对象
         QJsonObject reply;
-        reply["type"]="DISCOVERY_REPLY";
+        reply["type"] = QString::fromLatin1(RemoteLink::DiscoveryReplyType);
         reply["deviceName"]=QHostInfo::localHostName();
         reply["tcpPort"]=m_tcpPort;
         reply["version"]="1.0";

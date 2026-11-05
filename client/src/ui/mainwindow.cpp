@@ -6,7 +6,7 @@
 #include "protocol/NetworkConstants.h"
 #include "file/FileTransferClient.h"
 #include "decode/FrameDecodeWorker.h"
-#include "video/VideoReceiver.h"
+#include "video/VideoFrameParser.h"
 #include "video/UdpVideoReceiver.h"
 
 #include <QTimer>
@@ -24,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , m_session(new RemoteSession(this))
     , m_fileTransferClient(new FileTransferClient(this))
-    , m_videoReceiver(new VideoReceiver(this))
+    , m_videoFrameParser(new VideoFrameParser(this))
     , m_udpVideoReceiver(new UdpVideoReceiver(this))
 {
     ui->setupUi(this);
@@ -43,10 +43,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->main_label->setMinimumSize(1, 1);
     
     m_fpsTimer.start();
-    m_decodeFpsTimer.start();
-    m_receivedTimer.start();
-
-
     //创建图片接码子线程
     m_frameDecodeThread=new QThread(this);
     m_frameDecodeWorker=new FrameDecodeWorker;
@@ -57,9 +53,15 @@ MainWindow::MainWindow(QWidget *parent)
     //TCP 会话建立后，把服务端分配的 sessionId 交给 UDP 接收器。
     connect(m_session,&RemoteSession::sessionEstablished,m_udpVideoReceiver,&UdpVideoReceiver::setSessionId);
     // UDP 分片重组完成后，交给原有的视频帧解析器。
-    connect(m_udpVideoReceiver,&UdpVideoReceiver::framePayloadReceived,m_videoReceiver,&VideoReceiver::onFrameDataReceived);
+    connect(m_udpVideoReceiver,
+            &UdpVideoReceiver::framePayloadReceived,
+            m_videoFrameParser,
+            &VideoFrameParser::parseFramePayload);
 
-    connect(m_videoReceiver,&VideoReceiver::jpegDataReceived,this,&MainWindow::onFrameDataReceived);
+    connect(m_videoFrameParser,
+            &VideoFrameParser::jpegFrameReady,
+            this,
+            &MainWindow::onJpegFrameReceived);
     connect(m_frameDecodeWorker,&FrameDecodeWorker::frameDecoded,this,&MainWindow::onFrameDecoded);
     connect(m_frameDecodeThread,&QThread::finished,m_frameDecodeWorker, &QObject::deleteLater);
     connect(m_frameDecodeWorker,&FrameDecodeWorker::decodeFailed,this,&MainWindow::onFrameDecodeFailed);
@@ -213,10 +215,14 @@ void MainWindow::onFrameReceived(const QImage &image){
     m_displayFrameCnt++;
 
     if(m_fpsTimer.elapsed()>=1000){
-        qDebug()<<"[client] display fps ="<<m_displayFrameCnt;
+        qInfo()<<"[display] fps ="<<m_displayFrameCnt
+               <<"jpeg_frames_ready ="<<m_jpegFramesReady
+               <<"pending_frame_overwrites ="<<m_pendingJpegOverwrites;
         ui->fps_label->setText(QString("fps: %1").arg(m_displayFrameCnt));
         
         m_displayFrameCnt=0;
+        m_jpegFramesReady=0;
+        m_pendingJpegOverwrites=0;
         m_fpsTimer.restart();
         
     }
@@ -224,24 +230,24 @@ void MainWindow::onFrameReceived(const QImage &image){
 
 
 
-void MainWindow::onFrameDataReceived(const QByteArray &frameData)
+void MainWindow::onJpegFrameReceived(const QByteArray &jpegData)
 {
-    m_receivedFrameCnt++;
-    if(m_receivedTimer.elapsed()>=1000){
-        qDebug()<<"[client] received fps ="<<m_receivedFrameCnt;
-        m_receivedFrameCnt=0;
-        m_receivedTimer.restart();
-    }
-
+    ++m_jpegFramesReady;
 
     //丢弃旧帧，只保留最新帧
     if(m_decodeBusy){
-        m_pendingFrameData=frameData;
+        if (!m_pendingJpegData.isEmpty()) {
+            ++m_pendingJpegOverwrites;
+        }
+        m_pendingJpegData=jpegData;
         return;
     }
 
     m_decodeBusy=true;
-    QMetaObject::invokeMethod(m_frameDecodeWorker,"decodeFrame",Qt::ConnectionType::QueuedConnection,frameData);
+    QMetaObject::invokeMethod(m_frameDecodeWorker,
+                              "decodeFrame",
+                              Qt::ConnectionType::QueuedConnection,
+                              jpegData);
 
 }
 
@@ -249,20 +255,12 @@ void MainWindow::onFrameDataReceived(const QByteArray &frameData)
 void MainWindow::onFrameDecoded(const QImage &image)
 {
 
-    m_decodeFrameCnt++;
-    if(m_decodeFpsTimer.elapsed()>1000){
-        qDebug()<< "[client] decoded fps ="<<m_decodeFrameCnt;
-        m_decodeFrameCnt=0;
-        m_decodeFpsTimer.restart();
-    }
-
-
     onFrameReceived(image);
 
-    if(!m_pendingFrameData.isEmpty()){
+    if(!m_pendingJpegData.isEmpty()){
         //解码下一帧
-        QByteArray nextFrame=std::move(m_pendingFrameData);
-        m_pendingFrameData.clear();
+        QByteArray nextFrame=std::move(m_pendingJpegData);
+        m_pendingJpegData.clear();
 
         QMetaObject::invokeMethod(m_frameDecodeWorker,"decodeFrame",Qt::QueuedConnection,nextFrame);
 
@@ -279,9 +277,9 @@ void MainWindow::onFrameDecodeFailed()
 {
 
 
-    if (!m_pendingFrameData.isEmpty()) {
-        QByteArray nextFrame = std::move(m_pendingFrameData);
-        m_pendingFrameData.clear();
+    if (!m_pendingJpegData.isEmpty()) {
+        QByteArray nextFrame = std::move(m_pendingJpegData);
+        m_pendingJpegData.clear();
 
         QMetaObject::invokeMethod(
             m_frameDecodeWorker,

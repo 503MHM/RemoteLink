@@ -9,7 +9,7 @@ class RemoteSession;
 class DiscoveryClient;
 class FileTransferClient;
 class FrameDecodeWorker;
-class VideoReceiver;
+class VideoFrameParser;
 class UdpVideoReceiver;
 class QThread;
 
@@ -37,23 +37,17 @@ private:
     FrameDecodeWorker *m_frameDecodeWorker=nullptr;
 
     bool m_decodeBusy=false;
-    QByteArray m_pendingFrameData;
+    QByteArray m_pendingJpegData;
 
 
     //显示fps
     QElapsedTimer m_fpsTimer;
     int m_displayFrameCnt=0;
-
-    //解码fps
-    QElapsedTimer m_decodeFpsTimer;
-    int m_decodeFrameCnt=0;
-
-    //收到的数据帧的数量
-    QElapsedTimer m_receivedTimer;
-    int m_receivedFrameCnt=0;
+    quint64 m_jpegFramesReady = 0;
+    quint64 m_pendingJpegOverwrites = 0;
 
     //video payload解析
-    VideoReceiver *m_videoReceiver=nullptr;
+    VideoFrameParser *m_videoFrameParser=nullptr;
 
     UdpVideoReceiver *m_udpVideoReceiver=nullptr;
 
@@ -67,8 +61,8 @@ private slots:
     //将解码后的image显示到label中
     void onFrameReceived(const QImage &image);
 
-    //接收server端发送过来的帧数据
-    void onFrameDataReceived(const QByteArray &frameData);
+    //接收解析后的 JPEG 帧
+    void onJpegFrameReceived(const QByteArray &jpegData);
     
     //将解码的帧数据发送给label，防止帧积压
     void onFrameDecoded(const QImage &image);

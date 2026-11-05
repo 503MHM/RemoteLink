@@ -3,7 +3,6 @@
 #include "protocol/MessageType.h"
 
 #include <QNetworkProxy>
-#include <QImage>
 #include <QDebug>
 #include <QJsonDocument>
 #include <QJsonObject>

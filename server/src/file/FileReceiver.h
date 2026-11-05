@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QFile>
+#include <QElapsedTimer>
 
 class FileReceiver : public QObject{
 
@@ -43,4 +44,7 @@ private:
     quint64 m_receivedBytes=0;
     QString m_fileId;
     quint64 m_expectedChunkIndex=0;
+    QElapsedTimer m_transferTimer;
+    QElapsedTimer m_progressTimer;
+    quint64 m_lastProgressBytes = 0;
 };

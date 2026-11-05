@@ -10,7 +10,7 @@ constexpr quint16 DiscoveryPort=45455;
 constexpr quint16 VideoUdpPort=45456;
 
 constexpr const char *DiscoveryType="DISCOVERY";
-constexpr const char *DiscovertReplyType="DISCOVERY_REPLY";
+constexpr const char *DiscoveryReplyType="DISCOVERY_REPLY";
 
 constexpr quint32 MaxPacketPayloadSize=4*1024*1024;     //4MB
 
